@@ -1,0 +1,22 @@
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton,  QPlainTextEdit
+
+app = QApplication([])
+
+# Create main window
+window = QMainWindow()
+window.resize(900, 600)
+window.move(10, 10)       # position of window
+window.setWindowTitle('THz-MO System')
+
+# Create plain-text edit box
+textEdit = QPlainTextEdit(window)         # Create a text edit box in the main window
+textEdit.setPlaceholderText("Please input parameters here")
+textEdit.move(10,25)                      # position of text edit box relative to main window
+textEdit.resize(200,30)                   # size of text edit box
+
+ScanButton = QPushButton('Scan', window)
+ScanButton.move(150,550)                  # position of button relative to main window
+
+window.show()                             # Show the main window
+
+app.exec()                                #  exec for PySide6, exec_ for PySide2 ()

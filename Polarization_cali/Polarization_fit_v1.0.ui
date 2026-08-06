@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1280</width>
+    <height>900</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Polarization &amp; Power Data Fitting Tool v1.0</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    
+    <!-- Title Header -->
+    <item>
+     <widget class="QLabel" name="lbl_title">
+      <property name="font">
+       <font>
+        <pointsize>16</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Polarization &amp; Power Data Fitting &amp; Analysis Tool v1.0</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+
+    <!-- Top Data File Import GroupBox -->
+    <item>
+     <widget class="QGroupBox" name="grp_import">
+      <property name="title">
+       <string>1. Calibration Data Import (.mat / .csv / .h5)</string>
+      </property>
+      <layout class="QHBoxLayout" name="layout_import">
+       <item>
+        <widget class="QLabel" name="lbl_file">
+         <property name="text">
+          <string>Data File Path:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="line_file_path"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_browse_file">
+         <property name="text">
+          <string>Browse Data File...</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_load_data">
+         <property name="text">
+          <string>Load &amp; Parse Data</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- Fitting Settings & Model Selector GroupBox -->
+    <item>
+     <widget class="QGroupBox" name="grp_fit_setup">
+      <property name="title">
+       <string>2. Data Fitting Mode &amp; Formula Settings</string>
+      </property>
+      <layout class="QHBoxLayout" name="layout_fit_setup">
+       <item>
+        <widget class="QLabel" name="lbl_fit_mode">
+         <property name="text">
+          <string>Fitting Mode:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="combo_fit_mode">
+         <item>
+          <property name="text">
+           <string>Power Mode Fitting (Stage 1 Angle vs Power)</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Polarization Mode Fitting (Stage 2 Angle vs Stage 1 Step)</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lbl_formula">
+         <property name="text">
+          <string>Model Formula:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="combo_formula">
+         <item>
+          <property name="text">
+           <string>Malus Cosine Square Fit [P0 + A*cos^2(2*(theta-theta0))]</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Sine Wave Fit [A*sin(w*theta + phi) + C]</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Linear Fit [y = a*x + b]</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Polynomial Fit (Deg 2) [y = a*x^2 + b*x + c]</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_run_fit">
+         <property name="text">
+          <string>Run Curve Fitting</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- Interactive Conversion Predictor Calculator GroupBox -->
+    <item>
+     <widget class="QGroupBox" name="grp_calculator">
+      <property name="title">
+       <string>3. Interactive Conversion Predictor Calculator</string>
+      </property>
+      <layout class="QHBoxLayout" name="layout_calc">
+       <item>
+        <widget class="QLabel" name="lbl_calc_in1">
+         <property name="text">
+          <string>Input 1 (Stage 1 ° / Rel Step °):</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="spin_calc_in1">
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-360.00</double>
+         </property>
+         <property name="maximum">
+          <double>360.00</double>
+         </property>
+         <property name="value">
+          <double>0.00</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lbl_calc_in2">
+         <property name="text">
+          <string>Input 2 (Stage 2 °):</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QDoubleSpinBox" name="spin_calc_in2">
+         <property name="decimals">
+          <number>2</number>
+         </property>
+         <property name="minimum">
+          <double>-360.00</double>
+         </property>
+         <property name="maximum">
+          <double>360.00</double>
+         </property>
+         <property name="value">
+          <double>0.00</double>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_calculate">
+         <property name="text">
+          <string>Calculate Prediction</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lbl_calc_result">
+         <property name="font">
+          <font>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Prediction Result: --</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_exit">
+         <property name="text">
+          <string>Exit Program</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- pyqtgraph Real-Time & Fitted Curve Chart -->
+    <item>
+     <widget class="PlotWidget" name="powerChart" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>1</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
+
+    <!-- Output Log & Formula Parameter Text Edit Box -->
+    <item>
+     <widget class="QTextEdit" name="txt_formula_log">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumHeight">
+       <number>180</number>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header>plotwidget.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

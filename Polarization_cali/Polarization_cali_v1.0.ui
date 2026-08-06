@@ -1,0 +1,863 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1380</width>
+    <height>920</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Polarization &amp; Power Calibration System v1.0</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <item>
+     <widget class="QLabel" name="lbl_title">
+      <property name="font">
+       <font>
+        <pointsize>16</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Polarization &amp; Power Calibration System v1.0</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+
+    <!-- Top Unified Instrument Connection Panel -->
+    <item>
+     <widget class="QGroupBox" name="grp_pm100d">
+      <property name="title">
+       <string>Hardware Instrument Connections</string>
+      </property>
+      <layout class="QHBoxLayout" name="layout_pm100d">
+       <item>
+        <widget class="QCheckBox" name="chk_pm100d_enable">
+         <property name="text">
+          <string>PM100D Power Meter</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="LedIndicator" name="led_pm100d" native="true"/>
+       </item>
+       <item>
+        <widget class="QComboBox" name="combo_pm100d_res">
+         <property name="editable">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_connect_all">
+         <property name="text">
+          <string>Connect Enabled Devices</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_disconnect_all">
+         <property name="text">
+          <string>Disconnect All</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btn_exit">
+         <property name="text">
+          <string>Exit Program</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- Side-by-Side 3 Stage Boxes Layout (Left to Right) -->
+    <item>
+     <layout class="QHBoxLayout" name="layout_three_stages">
+      
+      <!-- Stage 1 GroupBox (Left) -->
+      <item>
+       <widget class="QGroupBox" name="grp_stage1">
+        <property name="title">
+         <string>Stage 1 (1/2 Waveplate)</string>
+        </property>
+        <layout class="QGridLayout" name="grid_s1">
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="chk_stage1_enable">
+           <property name="text">
+            <string>Enable Stage 1</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="LedIndicator" name="led_stage1" native="true"/>
+         </item>
+         <item row="0" column="2">
+          <widget class="QComboBox" name="combo_stage1_serial">
+           <property name="editable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3" colspan="2">
+          <widget class="QPushButton" name="btn_home_stage1">
+           <property name="text">
+            <string>Home Stage 1</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="1" column="0">
+          <widget class="QLabel" name="lbl_s1_start">
+           <property name="text">
+            <string>Start (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage1_start">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+           <property name="value">
+            <double>0.0</double>
+           </property>
+          </widget>
+         </item>
+
+         <item row="2" column="0">
+          <widget class="QLabel" name="lbl_s1_step">
+           <property name="text">
+            <string>Step (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage1_step">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+           <property name="value">
+            <double>5.0</double>
+           </property>
+          </widget>
+         </item>
+
+         <item row="3" column="0">
+          <widget class="QLabel" name="lbl_s1_no">
+           <property name="text">
+            <string>Step NO.:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1" colspan="2">
+          <widget class="QSpinBox" name="spin_stage1_no">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10000</number>
+           </property>
+           <property name="value">
+            <number>19</number>
+           </property>
+          </widget>
+         </item>
+
+         <item row="4" column="0" colspan="5">
+          <widget class="QLabel" name="lbl_stage1_pos">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Pos: -- °</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+
+         <item row="5" column="0">
+          <widget class="QLabel" name="lbl_s1_goto">
+           <property name="text">
+            <string>Target (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage1_goto">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="3" colspan="2">
+          <widget class="QPushButton" name="btn_stage1_goto">
+           <property name="text">
+            <string>Move To</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="6" column="0">
+          <widget class="QLabel" name="lbl_s1_rel">
+           <property name="text">
+            <string>Rel Step (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage1_rel">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="value">
+            <double>1.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="3">
+          <widget class="QPushButton" name="btn_stage1_step_minus">
+           <property name="text">
+            <string>Step -</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="4">
+          <widget class="QPushButton" name="btn_stage1_step_plus">
+           <property name="text">
+            <string>Step +</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+
+      <!-- Stage 2 GroupBox (Middle) -->
+      <item>
+       <widget class="QGroupBox" name="grp_stage2">
+        <property name="title">
+         <string>Stage 2 (Polarizer)</string>
+        </property>
+        <layout class="QGridLayout" name="grid_s2">
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="chk_stage2_enable">
+           <property name="text">
+            <string>Enable Stage 2</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="LedIndicator" name="led_stage2" native="true"/>
+         </item>
+         <item row="0" column="2">
+          <widget class="QComboBox" name="combo_stage2_serial">
+           <property name="editable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3" colspan="2">
+          <widget class="QPushButton" name="btn_home_stage2">
+           <property name="text">
+            <string>Home Stage 2</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="1" column="0">
+          <widget class="QLabel" name="lbl_s2_start">
+           <property name="text">
+            <string>Start (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage2_start">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+           <property name="value">
+            <double>0.0</double>
+           </property>
+          </widget>
+         </item>
+
+         <item row="2" column="0">
+          <widget class="QLabel" name="lbl_s2_step">
+           <property name="text">
+            <string>Step (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage2_step">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+           <property name="value">
+            <double>2.0</double>
+           </property>
+          </widget>
+         </item>
+
+         <item row="3" column="0">
+          <widget class="QLabel" name="lbl_s2_no">
+           <property name="text">
+            <string>Step NO.:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1" colspan="2">
+          <widget class="QSpinBox" name="spin_stage2_no">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10000</number>
+           </property>
+           <property name="value">
+            <number>91</number>
+           </property>
+          </widget>
+         </item>
+
+         <item row="4" column="0" colspan="5">
+          <widget class="QLabel" name="lbl_stage2_pos">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Pos: -- °</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+
+         <item row="5" column="0">
+          <widget class="QLabel" name="lbl_s2_goto">
+           <property name="text">
+            <string>Target (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage2_goto">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="3" colspan="2">
+          <widget class="QPushButton" name="btn_stage2_goto">
+           <property name="text">
+            <string>Move To</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="6" column="0">
+          <widget class="QLabel" name="lbl_s2_rel">
+           <property name="text">
+            <string>Rel Step (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage2_rel">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="value">
+            <double>1.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="3">
+          <widget class="QPushButton" name="btn_stage2_step_minus">
+           <property name="text">
+            <string>Step -</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="4">
+          <widget class="QPushButton" name="btn_stage2_step_plus">
+           <property name="text">
+            <string>Step +</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+
+      <!-- Stage 3 GroupBox (Right) -->
+      <item>
+       <widget class="QGroupBox" name="grp_stage3">
+        <property name="title">
+         <string>Stage 3 (Auxiliary)</string>
+        </property>
+        <layout class="QGridLayout" name="grid_s3">
+         <item row="0" column="0">
+          <widget class="QCheckBox" name="chk_stage3_enable">
+           <property name="text">
+            <string>Enable Stage 3</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="LedIndicator" name="led_stage3" native="true"/>
+         </item>
+         <item row="0" column="2">
+          <widget class="QComboBox" name="combo_stage3_serial">
+           <property name="editable">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3" colspan="2">
+          <widget class="QPushButton" name="btn_home_stage3">
+           <property name="text">
+            <string>Home Stage 3</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="1" column="0">
+          <widget class="QLabel" name="lbl_s3_start">
+           <property name="text">
+            <string>Start (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage3_start">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+           <property name="value">
+            <double>0.0</double>
+           </property>
+          </widget>
+         </item>
+
+         <item row="2" column="0">
+          <widget class="QLabel" name="lbl_s3_step">
+           <property name="text">
+            <string>Step (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage3_step">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+           <property name="value">
+            <double>1.0</double>
+           </property>
+          </widget>
+         </item>
+
+         <item row="3" column="0">
+          <widget class="QLabel" name="lbl_s3_no">
+           <property name="text">
+            <string>Step NO.:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1" colspan="2">
+          <widget class="QSpinBox" name="spin_stage3_no">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>10000</number>
+           </property>
+           <property name="value">
+            <number>46</number>
+           </property>
+          </widget>
+         </item>
+
+         <item row="4" column="0" colspan="5">
+          <widget class="QLabel" name="lbl_stage3_pos">
+           <property name="font">
+            <font>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Pos: -- °</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+
+         <item row="5" column="0">
+          <widget class="QLabel" name="lbl_s3_goto">
+           <property name="text">
+            <string>Target (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage3_goto">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="minimum">
+            <double>-360.0</double>
+           </property>
+           <property name="maximum">
+            <double>360.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="3" colspan="2">
+          <widget class="QPushButton" name="btn_stage3_goto">
+           <property name="text">
+            <string>Move To</string>
+           </property>
+          </widget>
+         </item>
+
+         <item row="6" column="0">
+          <widget class="QLabel" name="lbl_s3_rel">
+           <property name="text">
+            <string>Rel Step (°):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1" colspan="2">
+          <widget class="QDoubleSpinBox" name="spin_stage3_rel">
+           <property name="decimals">
+            <number>2</number>
+           </property>
+           <property name="value">
+            <double>1.0</double>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="3">
+          <widget class="QPushButton" name="btn_stage3_step_minus">
+           <property name="text">
+            <string>Step -</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="4">
+          <widget class="QPushButton" name="btn_stage3_step_plus">
+           <property name="text">
+            <string>Step +</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+
+     </layout>
+    </item>
+
+    <!-- Calibration Config Panel -->
+    <item>
+     <widget class="QGroupBox" name="grp_config">
+      <property name="title">
+       <string>Calibration Settings &amp; Parameters</string>
+      </property>
+      <layout class="QGridLayout" name="grid_config">
+       <item row="0" column="0">
+        <widget class="QLabel" name="lbl_scan_mode">
+         <property name="text">
+          <string>Calibration Mode:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QComboBox" name="combo_scan_mode">
+         <item>
+          <property name="text">
+           <string>Power</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Polarization</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="0" column="2">
+        <widget class="QLabel" name="lbl_polar_search">
+         <property name="text">
+          <string>Polar Search Algo:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="3">
+        <widget class="QComboBox" name="combo_polar_search">
+         <item>
+          <property name="text">
+           <string>Sequential Step (Option A)</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Binary Search (Option B)</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item row="0" column="4">
+        <widget class="QLabel" name="lbl_target_power">
+         <property name="text">
+          <string>Target Power (mW):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="5">
+        <widget class="QDoubleSpinBox" name="spin_target_power">
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="maximum">
+          <double>10000.000000000000000</double>
+         </property>
+         <property name="value">
+          <double>5.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="6">
+        <widget class="QLabel" name="lbl_power_tol">
+         <property name="text">
+          <string>Tolerance (mW):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="7">
+        <widget class="QDoubleSpinBox" name="spin_power_tol">
+         <property name="decimals">
+          <number>3</number>
+         </property>
+         <property name="maximum">
+          <double>100.000000000000000</double>
+         </property>
+         <property name="value">
+          <double>0.050000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="8">
+        <widget class="QLabel" name="lbl_wait_time">
+         <property name="text">
+          <string>Wait Time (s):</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="9">
+        <widget class="QDoubleSpinBox" name="spin_wait_time">
+         <property name="decimals">
+          <number>1</number>
+         </property>
+         <property name="maximum">
+          <double>3600.000000000000000</double>
+         </property>
+         <property name="value">
+          <double>10.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+
+    <!-- Run Controls & Save Directory -->
+    <item>
+     <layout class="QHBoxLayout" name="layout_run">
+      <item>
+       <widget class="QPushButton" name="btn_start_scan">
+        <property name="text">
+         <string>Start Calibration</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btn_stop_scan">
+        <property name="text">
+         <string>Stop Calibration</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lbl_save_dir">
+        <property name="text">
+         <string>Save Dir:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="line_save_dir"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btn_browse_dir">
+        <property name="text">
+         <string>Browse...</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lbl_file_prefix">
+        <property name="text">
+         <string>Prefix:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="line_file_prefix">
+        <property name="text">
+         <string>pol_cali</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+
+    <item>
+     <widget class="QProgressBar" name="progress_bar">
+      <property name="value">
+       <number>0</number>
+      </property>
+     </widget>
+    </item>
+
+    <item>
+     <widget class="PlotWidget" name="powerChart" native="true">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>1</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
+
+    <item>
+     <widget class="QTextEdit" name="txt_log">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="maximumHeight">
+       <number>120</number>
+      </property>
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header>plotwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>LedIndicator</class>
+   <extends>QWidget</extends>
+   <header>MyWidget</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>
