@@ -268,7 +268,8 @@ class ScanPlanner:
 			new_positions = np.round(new_positions, 3)
 			position_sequence.extend(new_positions.tolist())
 			step_sequence.extend([step_size] * step_NO)
-			stepNO_sequence.extend(list(range(1, step_NO + 1)))
+			current_len = len(stepNO_sequence)
+			stepNO_sequence.extend(list(range(current_len + 1, current_len + step_NO + 1)))
 			iPos = position_sequence[-1]
 
 		# Fallback to static point if no valid step exists.
