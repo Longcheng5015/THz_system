@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='utf-8'?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
@@ -19,143 +19,23 @@
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
-   <string notr="true">
-/* Global Modern Clean Theme for OPTP Measurement System */
-QMainWindow {
-    background-color: #F8F9FA;
-}
-
-QGroupBox {
-    font-weight: bold;
-    font-size: 12px;
-    color: #1F2328;
-    border: 1px solid #D0D7DE;
-    border-radius: 6px;
-    margin-top: 10px;
-    padding-top: 10px;
-    background-color: #FFFFFF;
-}
-
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    left: 12px;
-    padding: 0 4px;
-    background-color: #FFFFFF;
-}
-
-QLabel {
-    font-size: 11px;
-    color: #24292F;
-}
-
-QPushButton {
-    background-color: #F6F8FA;
-    color: #24292F;
-    border: 1px solid rgba(27, 31, 36, 0.15);
-    border-radius: 5px;
-    padding: 4px 10px;
-    font-weight: 600;
-    font-size: 11px;
-}
-
-QPushButton:hover {
-    background-color: #F3F4F6;
-    border-color: rgba(27, 31, 36, 0.3);
-}
-
-QPushButton:pressed {
-    background-color: #EBECF0;
-}
-
-QPushButton#runButton {
-    background-color: #2DA44E;
-    color: #FFFFFF;
-    border: 1px solid rgba(27, 31, 36, 0.15);
-}
-
-QPushButton#runButton:hover {
-    background-color: #2C974B;
-}
-
-QPushButton#stopButton {
-    background-color: #CF222E;
-    color: #FFFFFF;
-    border: 1px solid rgba(27, 31, 36, 0.15);
-}
-
-QPushButton#stopButton:hover {
-    background-color: #A40E26;
-}
-
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-    border: 1px solid #D0D7DE;
-    border-radius: 4px;
-    padding: 3px 6px;
-    background-color: #FFFFFF;
-    font-size: 11px;
-    color: #1F2328;
-}
-
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
-    border: 1px solid #0969DA;
-}
-
-QProgressBar {
-    border: 1px solid #D0D7DE;
-    border-radius: 4px;
-    text-align: center;
-    background-color: #EAEEF2;
-    font-weight: bold;
-    font-size: 11px;
-}
-
-QProgressBar::chunk {
-    background-color: #0969DA;
-    border-radius: 3px;
-}
-
-QTabWidget::pane {
-    border: 1px solid #D0D7DE;
-    border-radius: 6px;
-    background-color: #FFFFFF;
-}
-
-QTabBar::tab {
-    background: #F6F8FA;
-    border: 1px solid #D0D7DE;
-    padding: 6px 12px;
-    margin-right: 2px;
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-    font-weight: bold;
-    font-size: 11px;
-}
-
-QTabBar::tab:selected {
-    background: #FFFFFF;
-    border-bottom-color: #FFFFFF;
-    color: #0969DA;
-}
-
-*[mytype=&quot;inst_disp&quot;]{
-    background-color: #0D1117;
-    color: #58A6FF;
-    font-weight: bold;
-    font-family: Consolas, &quot;Courier New&quot;, monospace;
-    font-size: 14px;
-    border-radius: 4px;
-    padding: 2px 6px;
-}
-</string>��看起来内陷 */
-    /* 让文字向右下角移动 1 像素，产生被按压的错觉 */
-    padding-left: 1px; /* 假设默认是4px，这里加1 */
-    padding-top: 1px;  /* 假设默认是4px，这里加1 */
-}
-
-*[mytype=inst_manu] {
-    border: 1px solid gray;
-}</string>
+  <property name="styleSheet">
+   <string notr="true">QMainWindow { background-color: #F8F9FA; color: #1F2937; font-family: "Segoe UI", Arial, sans-serif; }
+QWidget#centralwidget { background-color: #F8F9FA; }
+QGroupBox { font-weight: bold; font-size: 13px; color: #374151; border: 1px solid #E5E7EB; border-radius: 8px; margin-top: 16px; padding-top: 14px; padding-bottom: 8px; padding-left: 10px; padding-right: 10px; background-color: #FFFFFF; }
+QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 16px; padding: 2px 8px; background-color: #FFFFFF; color: #111827; border: 1px solid #E5E7EB; border-radius: 4px; }
+QLabel { font-size: 12px; color: #4B5563; }
+QPushButton, QToolButton { background-color: #FFFFFF; color: #374151; border: 1px solid #D1D5DB; border-radius: 6px; padding: 6px 12px; font-weight: 600; font-size: 12px; min-height: 24px; }
+QPushButton:hover, QToolButton:hover { background-color: #F3F4F6; border-color: #9CA3AF; color: #111827; }
+QPushButton#scanStartBtn { background-color: #10B981; color: #FFFFFF; border: 1px solid #059669; }
+QPushButton#scanPauseBtn { background-color: #F59E0B; color: #FFFFFF; border: 1px solid #D97706; }
+QPushButton#scanCancelBtn { background-color: #EF4444; color: #FFFFFF; border: 1px solid #DC2626; }
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox { border: 1px solid #D1D5DB; border-radius: 5px; padding: 4px 8px; background-color: #FFFFFF; font-size: 12px; color: #111827; }
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus { border: 1px solid #3B82F6; background-color: #F8FAFC; }
+*[mytype="inst_disp"] { background-color: #F1F5F9; color: #0369A1; font-weight: bold; font-family: "Consolas", monospace; font-size: 14px; border: 1px solid #CBD5E1; border-radius: 5px; padding: 4px 8px; }
+QProgressBar { border: 1px solid #D1D5DB; border-radius: 5px; text-align: center; background-color: #F1F5F9; font-weight: bold; font-size: 12px; color: #1E293B; }
+QProgressBar::chunk { background-color: #3B82F6; border-radius: 4px; }
+</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_92">
@@ -468,7 +348,7 @@ QTabBar::tab:selected {
                       <string>Active Instrument?</string>
                      </property>
                      <property name="text">
-                      <string/>
+                      <string />
                      </property>
                      <property name="checked">
                       <bool>false</bool>
@@ -849,7 +729,7 @@ QTabBar::tab:selected {
                       <string>Active Instrument?</string>
                      </property>
                      <property name="text">
-                      <string/>
+                      <string />
                      </property>
                      <property name="checked">
                       <bool>false</bool>
@@ -978,7 +858,7 @@ QTabBar::tab:selected {
                       <string>Active Instrument?</string>
                      </property>
                      <property name="text">
-                      <string/>
+                      <string />
                      </property>
                      <property name="checked">
                       <bool>false</bool>
@@ -1816,7 +1696,7 @@ QTabBar::tab:selected {
                       <string>Active Instrument?</string>
                      </property>
                      <property name="text">
-                      <string/>
+                      <string />
                      </property>
                      <property name="checked">
                       <bool>false</bool>
@@ -2690,7 +2570,7 @@ QTabBar::tab:selected {
                         <string>Active Instrument?</string>
                        </property>
                        <property name="text">
-                        <string/>
+                        <string />
                        </property>
                        <property name="checked">
                         <bool>false</bool>
@@ -3320,7 +3200,7 @@ QTabBar::tab:selected {
                         <string>Active Instrument?</string>
                        </property>
                        <property name="text">
-                        <string/>
+                        <string />
                        </property>
                        <property name="checked">
                         <bool>false</bool>
@@ -3940,7 +3820,7 @@ QTabBar::tab:selected {
                       <string>Active Instrument?</string>
                      </property>
                      <property name="text">
-                      <string/>
+                      <string />
                      </property>
                      <property name="checked">
                       <bool>false</bool>
@@ -4440,7 +4320,7 @@ QTabBar::tab:selected {
                     </font>
                    </property>
                    <property name="toolTip">
-                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Choose calibration method for polarization dependent measurement:&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Auto Cali.'&lt;/span&gt;:  automatically calibrate polarization dependence by setting synchronization correction angle_steps;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt; 'Cali. Data'&lt;/span&gt;:  import calibration data obtained from manually calibration  &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Choose calibration method for polarization dependent measurement:&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'Auto Cali.'&lt;/span&gt;:  automatically calibrate polarization dependence by setting synchronization correction angle_steps;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt; 'Cali. Data'&lt;/span&gt;:  import calibration data obtained from manually calibration  &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                    </property>
                    <property name="text">
                     <string>Auto Cali.</string>
@@ -4598,7 +4478,7 @@ QTabBar::tab:selected {
                       </size>
                      </property>
                      <property name="toolTip">
-                      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan modes:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'1D_POL'&lt;/span&gt;: scan 1D at each polarization states; &lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'POL_1D'&lt;/span&gt;: scan polarization at each 1D position;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'TDS_Scan&lt;/span&gt;': time-domain scan;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'1D_TDS'&lt;/span&gt;: 1D scan at TDS peak, here stage1 beam act as pump, same as OPTP;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'2D_TDS&lt;/span&gt;': TDS scan at each optical pump delay, same as OPTP 2D scan; &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Scan modes:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'1D_POL'&lt;/span&gt;: scan 1D at each polarization states; &lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'POL_1D'&lt;/span&gt;: scan polarization at each 1D position;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'TDS_Scan&lt;/span&gt;': time-domain scan;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'1D_TDS'&lt;/span&gt;: 1D scan at TDS peak, here stage1 beam act as pump, same as OPTP;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'2D_TDS&lt;/span&gt;': TDS scan at each optical pump delay, same as OPTP 2D scan; &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                      </property>
                     </widget>
                    </item>
@@ -5485,7 +5365,7 @@ QTabBar::tab:selected {
                         <string>Active Instrument?</string>
                        </property>
                        <property name="text">
-                        <string/>
+                        <string />
                        </property>
                        <property name="checked">
                         <bool>false</bool>
@@ -5780,7 +5660,7 @@ QTabBar::tab:selected {
                           </size>
                          </property>
                          <property name="text">
-                          <string/>
+                          <string />
                          </property>
                          <property name="checked">
                           <bool>false</bool>
@@ -6055,7 +5935,7 @@ QTabBar::tab:selected {
                    <item>
                     <widget class="Line" name="line">
                      <property name="styleSheet">
-                      <string notr="true"/>
+                      <string notr="true" />
                      </property>
                      <property name="orientation">
                       <enum>Qt::Orientation::Horizontal</enum>
@@ -6127,7 +6007,7 @@ QTabBar::tab:selected {
                </sizepolicy>
               </property>
               <property name="styleSheet">
-               <string notr="true"/>
+               <string notr="true" />
               </property>
               <property name="mytype" stdset="0">
                <string>chart</string>
@@ -6143,7 +6023,7 @@ QTabBar::tab:selected {
                </sizepolicy>
               </property>
               <property name="styleSheet">
-               <string notr="true"/>
+               <string notr="true" />
               </property>
               <property name="mytype" stdset="0">
                <string>chart</string>
@@ -6186,7 +6066,7 @@ QTabBar::tab:selected {
     </item>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusbar" />
  </widget>
  <customwidgets>
   <customwidget>
@@ -6202,6 +6082,6 @@ QTabBar::tab:selected {
    <container>1</container>
   </customwidget>
  </customwidgets>
- <resources/>
- <connections/>
+ <resources />
+ <connections />
 </ui>
