@@ -49,3 +49,6 @@ venv.bak/
 .vscode/
 *.zip
 *.pdf
+
+# AI Assistant files
+CLAUDE.md
