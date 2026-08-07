@@ -162,6 +162,7 @@ class moSys:
         #endregion
         
         #region Initialize path for data saving
+        self.is_custom_save_path = False
         self.setup_data_folder()
         self.setup_dataFile_Name()
         #endregion
@@ -874,6 +875,8 @@ class moSys:
             data_save_path_box = getattr(self.ui, 'dataSavePath', None)
             if data_save_path_box is not None:
                 data_save_path_box.setText(folder_path)
+                self.dataSave_path = folder_path
+                self.is_custom_save_path = True
                 print(f"✓ Save path displayed in 'dataSavePath' QLineEdit: {folder_path}\n")
             else:
                 print(f"Warning: dataSavePath box 'dataSavePath' not found in UI")
@@ -1378,6 +1381,10 @@ class moSys:
                Note: there are two stop flags here for safety consideration, one in ScanThread and one in main moSys class.
         """
         print("======================starting scan in thread======================")
+        
+        # update data folder date if not using custom path
+        if not getattr(self, 'is_custom_save_path', False):
+            self.setup_data_folder()
         
         # reset stop flag
         self.stop_flag = False  # this is the main moSys class stop flag, also used in ScanThread

@@ -38,10 +38,10 @@ except Exception:
 
 import pyqtgraph as pg
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QMessageBox, QFileDialog
+    QApplication, QMainWindow, QMessageBox, QFileDialog, QLabel
 )
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QThread, Signal, Slot, Qt
+from PySide6.QtCore import QThread, Signal, Slot, Qt, QTimer
 
 from MyWidget import LedIndicator
 from thorlabs_PM100D import PM100D
@@ -321,6 +321,24 @@ class PolarizationCaliApp(QMainWindow):
         ui_path = Path(__file__).parent / "Polarization_cali_v1.0.ui"
         self.ui = uiLoader.load(str(ui_path))
         self.ui.closeEvent = self.on_ui_close_event
+        
+        # Add a global stylesheet for button press/hover feedback
+        self.ui.setStyleSheet("""
+            QPushButton {
+                padding: 5px;
+                border: 1px solid #a0a0a0;
+                border-radius: 3px;
+                background-color: #f0f0f0;
+            }
+            QPushButton:hover {
+                background-color: #e5f1fb;
+                border: 1px solid #0078d7;
+            }
+            QPushButton:pressed {
+                background-color: #cce4f7;
+                border: 1px solid #005499;
+            }
+        """)
 
         # Instrument objects
         self.pm_inst = None
@@ -376,7 +394,8 @@ class PolarizationCaliApp(QMainWindow):
     def setup_ui_events(self):
         """Connect UI signals to handler slots."""
         self.ui.btn_connect_all.clicked.connect(self.connect_all_devices)
-        self.ui.btn_disconnect_all.clicked.connect(self.disconnect_all_devices)
+        self.ui.btn_disconnect_all.setText("Disconnect")
+        self.ui.btn_disconnect_all.clicked.connect(self.disconnect_selected_devices)
         self.ui.btn_exit.clicked.connect(self.exit_app)
 
         self.ui.btn_home_stage1.clicked.connect(lambda: self.home_stage(1))
@@ -404,11 +423,53 @@ class PolarizationCaliApp(QMainWindow):
         os.makedirs(default_save_path, exist_ok=True)
         self.ui.line_save_dir.setText(default_save_path)
         self.init_device_defaults()
+        
+        # Setup continuous monitoring timer for idle state
+        self.monitor_timer = QTimer(self)
+        self.monitor_timer.timeout.connect(self.update_monitor)
+        self.monitor_timer.start(500)  # update every 500ms
+        
+        # Dynamically add a big power label to the PM100D group box layout
+        self.lbl_current_power = QLabel("Power: -- mW")
+        self.lbl_current_power.setStyleSheet("font-size: 16px; font-weight: bold; color: #d32f2f;")
+        if hasattr(self.ui, 'layout_pm100d'):
+            self.ui.layout_pm100d.addWidget(self.lbl_current_power)
+
+    @Slot()
+    def update_monitor(self):
+        """Continuously update power and positions when idle."""
+        if getattr(self, 'worker', None) is not None and self.worker.isRunning():
+            return
+            
+        status_parts = []
+        if getattr(self, 'pm_inst', None) is not None:
+            try:
+                p = self.pm_inst.measure_power() * 1000.0
+                power_text = f"Power: {p:.4f} mW"
+                status_parts.append(power_text)
+                if hasattr(self, 'lbl_current_power'):
+                    self.lbl_current_power.setText(power_text)
+            except Exception:
+                pass
+                
+        for idx, stage in enumerate([getattr(self, 'stage1_inst', None), 
+                                     getattr(self, 'stage2_inst', None), 
+                                     getattr(self, 'stage3_inst', None)], 1):
+            if stage is not None:
+                try:
+                    pos = stage.position()
+                    getattr(self.ui, f"lbl_stage{idx}_pos").setText(f"Pos: {pos:.2f} °")
+                    status_parts.append(f"Stg{idx}: {pos:.2f}°")
+                except Exception:
+                    pass
+                    
+        if status_parts:
+            self.statusBar().showMessage(" | ".join(status_parts))
 
     def init_device_defaults(self):
         """Populate default VISA resource and stage serials matching OPTP v1.7."""
         if self.ui.combo_pm100d_res.count() == 0:
-            self.ui.combo_pm100d_res.addItem("USB0::0x1313::0x8078::P0000000::INSTR")
+            self.ui.combo_pm100d_res.addItem("USB0::0x1313::0x8078::P0020951::INSTR")
 
         optp_serials = {
             1: "27004364",
@@ -445,7 +506,13 @@ class PolarizationCaliApp(QMainWindow):
                 if res:
                     pm_temp = None
                     try:
-                        pm_temp = PM100D(res)
+                        pm_temp = PM100D(
+                            res,
+                            timeout_ms=10000,
+                            query_delay_s=0.1,
+                            retry_count=2,
+                            retry_delay_s=0.2,
+                        )
                         pm_temp.open()
                         idn = pm_temp.idn()
                         self.pm_inst = pm_temp
@@ -471,11 +538,10 @@ class PolarizationCaliApp(QMainWindow):
                     stg_temp = None
                     try:
                         stg_temp = RotaryStage(controller_serial=sn, poll_ms=250)
-                        stg_temp.home(60000)
                         self.stage1_inst = stg_temp
                         self.ui.lbl_stage1_pos.setText(f"Pos: {stg_temp.position():.2f} °")
                         self.ui.led_stage1.status = True
-                        self.log(f"✓ Stage 1 connected & homed (Serial: {sn})")
+                        self.log(f"✓ Stage 1 connected (Serial: {sn})")
                     except Exception as exc:
                         if stg_temp is not None:
                             try:
@@ -496,11 +562,10 @@ class PolarizationCaliApp(QMainWindow):
                     stg_temp = None
                     try:
                         stg_temp = RotaryStage(controller_serial=sn, poll_ms=250)
-                        stg_temp.home(60000)
                         self.stage2_inst = stg_temp
                         self.ui.lbl_stage2_pos.setText(f"Pos: {stg_temp.position():.2f} °")
                         self.ui.led_stage2.status = True
-                        self.log(f"✓ Stage 2 connected & homed (Serial: {sn})")
+                        self.log(f"✓ Stage 2 connected (Serial: {sn})")
                     except Exception as exc:
                         if stg_temp is not None:
                             try:
@@ -521,11 +586,10 @@ class PolarizationCaliApp(QMainWindow):
                     stg_temp = None
                     try:
                         stg_temp = RotaryStage(controller_serial=sn, poll_ms=250)
-                        stg_temp.home(60000)
                         self.stage3_inst = stg_temp
                         self.ui.lbl_stage3_pos.setText(f"Pos: {stg_temp.position():.2f} °")
                         self.ui.led_stage3.status = True
-                        self.log(f"✓ Stage 3 connected & homed (Serial: {sn})")
+                        self.log(f"✓ Stage 3 connected (Serial: {sn})")
                     except Exception as exc:
                         if stg_temp is not None:
                             try:
@@ -539,21 +603,11 @@ class PolarizationCaliApp(QMainWindow):
         QApplication.processEvents()
 
     @Slot()
-    def disconnect_all_devices(self):
-        """Close sessions for all connected instruments and reset LEDs."""
-        has_connected_devices = any([
-            self.pm_inst is not None,
-            self.stage1_inst is not None,
-            self.stage2_inst is not None,
-            self.stage3_inst is not None
-        ])
-
-        if not has_connected_devices:
-            self.log("No devices currently connected.")
-            return
-
-        self.log("=== Disconnecting All Devices ===")
-        if self.pm_inst:
+    def disconnect_selected_devices(self):
+        """Close sessions only for instruments whose enable checkboxes are checked."""
+        self.log("=== Disconnecting Selected Devices ===")
+        # Check PM100D
+        if self.ui.chk_pm100d_enable.isChecked() and self.pm_inst:
             try:
                 self.pm_inst.close()
             except Exception:
@@ -562,23 +616,57 @@ class PolarizationCaliApp(QMainWindow):
             self.ui.led_pm100d.status = False
             self.log("Disconnected PM100D")
 
-        for idx, (stg_attr, led) in enumerate([
-            (self.stage1_inst, self.ui.led_stage1),
-            (self.stage2_inst, self.ui.led_stage2),
-            (self.stage3_inst, self.ui.led_stage3),
-        ], start=1):
+        # Check Stage 1
+        if self.ui.chk_stage1_enable.isChecked() and self.stage1_inst:
+            try:
+                self.stage1_inst.close()
+            except Exception:
+                pass
+            self.stage1_inst = None
+            self.ui.led_stage1.status = False
+            self.log("Disconnected Stage 1")
+
+        # Check Stage 2
+        if self.ui.chk_stage2_enable.isChecked() and self.stage2_inst:
+            try:
+                self.stage2_inst.close()
+            except Exception:
+                pass
+            self.stage2_inst = None
+            self.ui.led_stage2.status = False
+            self.log("Disconnected Stage 2")
+
+        # Check Stage 3
+        if self.ui.chk_stage3_enable.isChecked() and self.stage3_inst:
+            try:
+                self.stage3_inst.close()
+            except Exception:
+                pass
+            self.stage3_inst = None
+            self.ui.led_stage3.status = False
+            self.log("Disconnected Stage 3")
+
+        QApplication.processEvents()
+
+    def disconnect_all_devices(self):
+        """Close sessions for all connected instruments unconditionally (used on application exit)."""
+        if self.pm_inst:
+            try:
+                self.pm_inst.close()
+            except Exception:
+                pass
+            self.pm_inst = None
+
+        for stg_attr in [self.stage1_inst, self.stage2_inst, self.stage3_inst]:
             if stg_attr:
                 try:
                     stg_attr.close()
                 except Exception:
                     pass
-                led.status = False
-                self.log(f"Disconnected Stage {idx}")
 
         self.stage1_inst = None
         self.stage2_inst = None
         self.stage3_inst = None
-        QApplication.processEvents()
 
     @Slot()
     def exit_app(self):
