@@ -57,6 +57,21 @@ This document records the overall development and debugging history for the OPTP
   - Duplicated main executable script and Qt UI layout file for v1.8 development.
   - Linked `OPTP_system_iTC_v1.8.py` to load `OPTP_iTC_main_v1.8.ui`.
 
+### v1.9
+- Date: 2026-08-08
+- Main change: Fixed UI freezing issue caused by blocking I/O on the main thread when updating iTC parameters.
+- Details:
+  - Refactored `MercuryiTC_Updater` to inherit from `QThread` instead of using a `QTimer` on the main thread.
+  - Implemented thread-safe UI updates using the `display_updated` Qt Signal.
+  - Updated `closeInstruments()` to gracefully stop and wait for the `MercuryiTC_Updater` background thread before closing the instrument to prevent crashes on termination.
+
+### v1.91
+- Date: 2026-08-08
+- Main change: Upgraded wait time multiplier input to support decimal values.
+- Details:
+  - Replaced `QSpinBox` with `QDoubleSpinBox` for `wait1multip` and `wait2multip` in the Qt UI file, allowing float multipliers (e.g., 1.2, 3.5).
+  - Updated `apply_lockin_parameter` calculation to properly `round` the multiplied float result before converting to an integer millisecond wait time.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 
