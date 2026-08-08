@@ -157,31 +157,55 @@ class CalibrationWorker(QThread):
             # MODE 1: Power mode
             # ----------------------------------------------------
             if scan_mode.lower().startswith("power"):
-                fixed_s2 = s2_seq[0] if (stage2_cfg["enabled"] and len(s2_seq) > 0) else None
-                fixed_s3 = s3_seq[0] if (stage3_cfg["enabled"] and len(s3_seq) > 0) else None
+                # Make sequences same length for coupled 1-to-1 movement
+                max_len = max(len(s1_seq), len(s2_seq))
+                
+                def pad_seq(seq):
+                    if not seq or seq[0] is None:
+                        return [None] * max_len
+                    if len(seq) < max_len:
+                        return seq + [seq[-1]] * (max_len - len(seq))
+                    return seq
 
-                if self.stage2_inst and fixed_s2 is not None:
-                    self.stage2_inst.move_to(fixed_s2)
+                s1_seq_pad = pad_seq(s1_seq)
+                s2_seq_pad = pad_seq(s2_seq)
+                
+                fixed_s3 = s3_seq[0] if (stage3_cfg["enabled"] and len(s3_seq) > 0) else None
                 if self.stage3_inst and fixed_s3 is not None:
                     self.stage3_inst.move_to(fixed_s3)
 
-                for idx1, angle1 in enumerate(s1_seq):
+                total_points = max_len
+
+                for i in range(max_len):
                     if self._is_stopped:
                         break
+                    
+                    angle1 = s1_seq_pad[i]
+                    angle2 = s2_seq_pad[i]
 
+                    moved = False
                     if self.stage1_inst and angle1 is not None:
-                        self.sig_log.emit(f"Moving Stage 1 to {angle1}°...")
+                        # only log if it's the first step or the angle changes
+                        if i == 0 or angle1 != s1_seq_pad[i-1]:
+                            self.sig_log.emit(f"Moving Stage 1 to {angle1}°...")
                         self.stage1_inst.move_to(angle1)
+                        moved = True
+                        
+                    if self.stage2_inst and angle2 is not None:
+                        if i == 0 or angle2 != s2_seq_pad[i-1]:
+                            self.sig_log.emit(f"Moving Stage 2 to {angle2}°...")
+                        self.stage2_inst.move_to(angle2)
+                        moved = True
 
                     power_mw, stable = check_power_stability(
                         self.pm_inst, wait_time, tolerance,
                         stop_flag_check=lambda: self._is_stopped,
-                        logger=lambda msg: self.sig_log.emit(msg),
+                        logger=lambda msg: self.sig_log.emit(msg) if moved else None,
                         pm_enabled=pm_enabled
                     )
 
                     s1_pos = angle1 if stage1_cfg["enabled"] else np.nan
-                    s2_pos = fixed_s2 if stage2_cfg["enabled"] else np.nan
+                    s2_pos = angle2 if stage2_cfg["enabled"] else np.nan
                     s3_pos = fixed_s3 if stage3_cfg["enabled"] else np.nan
 
                     pt = {
@@ -208,26 +232,28 @@ class CalibrationWorker(QThread):
                 if self.stage3_inst and fixed_s3 is not None:
                     self.stage3_inst.move_to(fixed_s3)
 
-                for idx1, angle1 in enumerate(s1_seq):
+                total_points = len(s2_seq)
+
+                for idx2, angle2 in enumerate(s2_seq):
                     if self._is_stopped:
                         break
 
-                    if self.stage1_inst and angle1 is not None:
-                        self.sig_log.emit(f"Stage 1 -> {angle1}° | Searching Stage 2 for target power {target_power} mW...")
-                        self.stage1_inst.move_to(angle1)
+                    if self.stage2_inst and angle2 is not None:
+                        self.sig_log.emit(f"Stage 2 -> {angle2}° | Searching Stage 1 for target power {target_power} mW...")
+                        self.stage2_inst.move_to(angle2)
 
                     matched = False
-                    matched_s2_pos = np.nan
+                    matched_s1_pos = np.nan
                     final_power_mw = 0.0
 
-                    # Option A: Sequential Step Search (Option A)
+                    # Option A: Sequential Step Search
                     if "Sequential" in polar_algo or "A" in polar_algo:
-                        for angle2 in s2_seq:
+                        for angle1 in s1_seq:
                             if self._is_stopped:
                                 break
 
-                            if self.stage2_inst and angle2 is not None:
-                                self.stage2_inst.move_to(angle2)
+                            if self.stage1_inst and angle1 is not None:
+                                self.stage1_inst.move_to(angle1)
 
                             power_mw, stable = check_power_stability(
                                 self.pm_inst, wait_time, tolerance,
@@ -237,16 +263,16 @@ class CalibrationWorker(QThread):
 
                             if abs(power_mw - target_power) <= tolerance and stable:
                                 matched = True
-                                matched_s2_pos = angle2
+                                matched_s1_pos = angle1
                                 final_power_mw = power_mw
-                                self.sig_log.emit(f"Matched Target Power! Stage 2: {angle2}°, Power: {power_mw:.4f} mW")
+                                self.sig_log.emit(f"Matched Target Power! Stage 1: {angle1}°, Power: {power_mw:.4f} mW")
                                 break
 
-                    # Option B: Binary Search (Option B)
+                    # Option B: Binary Search
                     else:
-                        if stage2_cfg["enabled"] and len(s2_seq) >= 2:
-                            low_ang = stage2_cfg["start"]
-                            high_ang = round(stage2_cfg["start"] + (stage2_cfg["no"] - 1) * stage2_cfg["step"], 2)
+                        if stage1_cfg["enabled"] and len(s1_seq) >= 2:
+                            low_ang = stage1_cfg["start"]
+                            high_ang = round(stage1_cfg["start"] + (stage1_cfg["no"] - 1) * stage1_cfg["step"], 2)
                             max_biter = 10
 
                             for _ in range(max_biter):
@@ -254,8 +280,8 @@ class CalibrationWorker(QThread):
                                     break
 
                                 mid_ang = round((low_ang + high_ang) / 2.0, 2)
-                                if self.stage2_inst:
-                                    self.stage2_inst.move_to(mid_ang)
+                                if self.stage1_inst:
+                                    self.stage1_inst.move_to(mid_ang)
 
                                 power_mw, stable = check_power_stability(
                                     self.pm_inst, wait_time, tolerance,
@@ -265,9 +291,9 @@ class CalibrationWorker(QThread):
 
                                 if abs(power_mw - target_power) <= tolerance and stable:
                                     matched = True
-                                    matched_s2_pos = mid_ang
+                                    matched_s1_pos = mid_ang
                                     final_power_mw = power_mw
-                                    self.sig_log.emit(f"Binary Search Matched! Stage 2: {mid_ang}°, Power: {power_mw:.4f} mW")
+                                    self.sig_log.emit(f"Binary Search Matched! Stage 1: {mid_ang}°, Power: {power_mw:.4f} mW")
                                     break
                                 elif power_mw < target_power:
                                     low_ang = mid_ang
@@ -276,10 +302,10 @@ class CalibrationWorker(QThread):
 
                     if not matched:
                         final_power_mw = power_mw if 'power_mw' in locals() else 0.0
-                        self.sig_log.emit(f"Warning: Target power not matched within tolerance for Stage 1 = {angle1}°")
+                        self.sig_log.emit(f"Warning: Target power not matched within tolerance for Stage 2 = {angle2}°")
 
-                    s1_pos = angle1 if stage1_cfg["enabled"] else np.nan
-                    s2_pos = matched_s2_pos if stage2_cfg["enabled"] else np.nan
+                    s1_pos = matched_s1_pos if stage1_cfg["enabled"] else np.nan
+                    s2_pos = angle2 if stage2_cfg["enabled"] else np.nan
                     s3_pos = fixed_s3 if stage3_cfg["enabled"] else np.nan
 
                     pt = {

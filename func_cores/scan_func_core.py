@@ -140,63 +140,7 @@ class DataProcess:
 			return []
 		return [start_T + i * step_T for i in range(NO_T)]
 
-	@staticmethod
-	def build_cali_table(
-		rot1: np.ndarray,
-		rot2: np.ndarray,
-		rot3: np.ndarray,
-		power: np.ndarray,
-		interp_cali_data: bool = False,
-	) -> Dict[str, np.ndarray]:
-		"""
-		Build calibration table from raw rot1/rot2/rot3/power arrays.
 
-		This helper reproduces the pure data part of `import_calibration_file`:
-		1) Round rot2 to 0.1 degree.
-		2) Sort all rows by rot2.
-		3) Remove duplicated rot2 entries (keep first occurrence).
-		4) Optionally interpolate to a uniform 0.1-degree rot2 grid.
-
-		Returns a dictionary with keys:
-		- rot2_cali, rot1_cali, rot3_cali, power_cali
-		"""
-		rot2 = np.round(rot2, 1)
-		sort_idx = np.argsort(rot2)
-
-		rot2_sorted = rot2[sort_idx]
-		rot1_sorted = rot1[sort_idx]
-		rot3_sorted = rot3[sort_idx]
-		power_sorted = power[sort_idx]
-
-		rot2_unique, unique_idx = np.unique(rot2_sorted, return_index=True)
-		rot1_unique = rot1_sorted[unique_idx]
-		rot3_unique = rot3_sorted[unique_idx]
-		power_unique = power_sorted[unique_idx]
-
-		if not interp_cali_data:
-			return {
-				"rot2_cali": rot2_unique,
-				"rot1_cali": rot1_unique,
-				"rot3_cali": rot3_unique,
-				"power_cali": power_unique,
-			}
-
-		start = float(rot2_unique.min())
-		stop = float(rot2_unique.max())
-		n_step = int(np.round((stop - start) / 0.1))
-		rot2_grid = start + np.arange(n_step + 1) * 0.1
-		rot2_grid = np.round(rot2_grid, 1)
-
-		rot1_interp = np.round(np.interp(rot2_grid, rot2_unique, rot1_unique), 2)
-		rot3_interp = np.round(np.interp(rot2_grid, rot2_unique, rot3_unique), 2)
-		power_interp = np.round(np.interp(rot2_grid, rot2_unique, power_unique), 3)
-
-		return {
-			"rot2_cali": rot2_grid,
-			"rot1_cali": rot1_interp,
-			"rot3_cali": rot3_interp,
-			"power_cali": power_interp,
-		}
 
 	@staticmethod
 	def thz_fft_calc(position_mm: np.ndarray, TDS_amplitude: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

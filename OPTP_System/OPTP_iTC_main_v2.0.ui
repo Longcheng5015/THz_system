@@ -309,7 +309,7 @@ QProgressBar::chunk {
                         </widget>
                        </item>
                        <item>
-                        <widget class="QSpinBox" name="wait1multip">
+                        <widget class="QDoubleSpinBox" name="wait1multip">
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                            <horstretch>0</horstretch>
@@ -325,17 +325,20 @@ QProgressBar::chunk {
                          <property name="buttonSymbols">
                           <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                          </property>
-                         <property name="text" stdset="0">
-                          <string>2</string>
+                         <property name="decimals">
+                          <number>2</number>
                          </property>
                          <property name="minimum">
-                          <number>1</number>
+                          <double>0.1</double>
                          </property>
                          <property name="maximum">
-                          <number>10</number>
+                          <double>10.0</double>
+                         </property>
+                         <property name="singleStep">
+                          <double>0.1</double>
                          </property>
                          <property name="value">
-                          <number>2</number>
+                          <double>2.0</double>
                          </property>
                         </widget>
                        </item>
@@ -687,7 +690,7 @@ QProgressBar::chunk {
                         </widget>
                        </item>
                        <item>
-                        <widget class="QSpinBox" name="wait2multip">
+                        <widget class="QDoubleSpinBox" name="wait2multip">
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                            <horstretch>0</horstretch>
@@ -703,17 +706,20 @@ QProgressBar::chunk {
                          <property name="buttonSymbols">
                           <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                          </property>
-                         <property name="text" stdset="0">
-                          <string>2</string>
+                         <property name="decimals">
+                          <number>2</number>
                          </property>
                          <property name="minimum">
-                          <number>1</number>
+                          <double>0.1</double>
                          </property>
                          <property name="maximum">
-                          <number>10</number>
+                          <double>10.0</double>
+                         </property>
+                         <property name="singleStep">
+                          <double>0.1</double>
                          </property>
                          <property name="value">
-                          <number>2</number>
+                          <double>2.0</double>
                          </property>
                         </widget>
                        </item>
@@ -1715,6 +1721,9 @@ QProgressBar::chunk {
                      <property name="buttonSymbols">
                       <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                      </property>
+                     <property name="maximum">
+                      <number>10000</number>
+                     </property>
                      <property name="mytype" stdset="0">
                       <string>intNO</string>
                      </property>
@@ -2571,6 +2580,9 @@ QProgressBar::chunk {
                      <property name="buttonSymbols">
                       <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                      </property>
+                     <property name="maximum">
+                      <number>10000</number>
+                     </property>
                      <property name="mytype" stdset="0">
                       <string>intNO</string>
                      </property>
@@ -3148,6 +3160,9 @@ QProgressBar::chunk {
                        </property>
                        <property name="buttonSymbols">
                         <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                       </property>
+                       <property name="maximum">
+                        <number>10000</number>
                        </property>
                        <property name="mytype" stdset="0">
                         <string>intNO</string>
@@ -3761,6 +3776,9 @@ QProgressBar::chunk {
                        <property name="buttonSymbols">
                         <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                        </property>
+                       <property name="maximum">
+                        <number>10000</number>
+                       </property>
                        <property name="mytype" stdset="0">
                         <string>intNO</string>
                        </property>
@@ -4287,6 +4305,9 @@ QProgressBar::chunk {
                      </property>
                      <property name="buttonSymbols">
                       <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                     </property>
+                     <property name="maximum">
+                      <number>10000</number>
                      </property>
                      <property name="mytype" stdset="0">
                       <string>intNO</string>

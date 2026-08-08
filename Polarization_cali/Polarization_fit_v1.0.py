@@ -14,7 +14,7 @@ import numpy as np
 import h5py
 import pandas as pd
 import csv
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, fsolve
 
 # Path injection for inst_libs and func_cores
 current_dir = Path(__file__).resolve().parent
@@ -23,6 +23,8 @@ if str(parent_dir / "inst_libs") not in sys.path:
     sys.path.append(str(parent_dir / "inst_libs"))
 if str(parent_dir / "func_cores") not in sys.path:
     sys.path.append(str(parent_dir / "func_cores"))
+
+from scan_data_core import ScanDataCore
 
 import pyqtgraph as pg
 from PySide6.QtWidgets import (
@@ -138,6 +140,26 @@ class PolarizationFitApp:
         self.ui.btn_exit.clicked.connect(self.exit_app)
         self.ui.combo_fit_mode.currentIndexChanged.connect(self.on_fit_mode_changed)
 
+        # Append new interpolation options to formula combo box
+        self.ui.combo_formula.addItem("Raw Data Interpolation (Linear)")
+        self.ui.combo_formula.addItem("Raw Data Interpolation (Cubic Spline)")
+
+        # Dynamically add an Export CSV button to the UI
+        from PySide6.QtWidgets import QPushButton, QHBoxLayout, QInputDialog
+        self.btn_export_csv = QPushButton("Export Dense CSV")
+        self.btn_export_csv.clicked.connect(self.export_dense_csv)
+        
+        # We find the parent layout of btn_calculate and add it there
+        parent_layout = self.ui.btn_calculate.parentWidget().layout()
+        if parent_layout:
+            # Find the index of btn_calculate to insert next to it
+            idx = parent_layout.indexOf(self.ui.btn_calculate)
+            if idx != -1:
+                parent_layout.insertWidget(idx + 1, self.btn_export_csv)
+            else:
+                parent_layout.addWidget(self.btn_export_csv)
+            self.btn_export_csv.show()
+
     def log(self, message: str):
         """Append log trace and formula output to text edit box."""
         timestamp = time.strftime("%H:%M:%S")
@@ -176,10 +198,16 @@ class PolarizationFitApp:
                     if key in mat:
                         parsed[key] = mat[key].flatten()
             elif ext == ".csv":
-                df = pd.read_csv(filepath)
-                for col in df.columns:
-                    clean_col = str(col).strip()
-                    parsed[clean_col] = df[col].to_numpy()
+                data = ScanDataCore.parse_calibration_file(filepath)
+                if data is not None:
+                    rot1, rot2, rot3, power = data.T
+                    parsed["stage1"] = rot1
+                    parsed["stage2"] = rot2
+                    parsed["stage3"] = rot3
+                    parsed["power_mw"] = power
+                else:
+                    QMessageBox.warning(self.ui, "Warning", "No valid data found in CSV file.")
+                    return
             elif ext in [".h5", ".hdf5"]:
                 with h5py.File(filepath, "r") as f:
                     for key in f.keys():
@@ -205,14 +233,14 @@ class PolarizationFitApp:
             # Power mode fitting
             plot_item.setLabel("bottom", "Stage 1 Angle (°)", color="black")
             plot_item.setLabel("left", "Measured Power (mW)", color="black")
-            self.ui.lbl_calc_in1.setText("Stage 1 Target (°):")
-            self.ui.lbl_calc_in2.setText("Stage 2 Fixed (°):")
+            self.ui.lbl_calc_in1.setText("Stage 1 Guess/Target (°):")
+            self.ui.lbl_calc_in2.setText("Target Power (mW):")
         else:
             # Polarization mode fitting
             plot_item.setLabel("bottom", "Stage 2 Angle (°)", color="black")
             plot_item.setLabel("left", "Required Stage 1 Step (°)", color="black")
             self.ui.lbl_calc_in1.setText("Stage 2 Target Angle (°):")
-            self.ui.lbl_calc_in2.setText("Stage 2 Step Change (°):")
+            self.ui.lbl_calc_in2.setText("Target Stage 1 Step (°):")
 
     def plot_raw_data(self):
         """Plot raw scatter points on chart."""
@@ -285,8 +313,18 @@ class PolarizationFitApp:
             # Formula model selection
             if formula_idx == 0:
                 # Malus Law Cosine Square Fit
-                p0_init = [np.min(y_data), np.max(y_data) - np.min(y_data), 0.0]
-                popt, _ = curve_fit(malus_model, x_data, y_data, p0=p0_init, maxfev=10000)
+                # Smarter initial guess: find the actual X coordinate of the maximum Y for theta0!
+                idx_max = np.argmax(y_data)
+                theta0_guess = x_data[idx_max]
+                
+                p0_init = [np.min(y_data), np.max(y_data) - np.min(y_data), theta0_guess]
+                # Provide loose bounds to prevent optimizer from diverging
+                bounds = (
+                    [0.0, 0.0, -np.inf], 
+                    [np.max(y_data), np.inf, np.inf]
+                )
+                
+                popt, _ = curve_fit(malus_model, x_data, y_data, p0=p0_init, bounds=bounds, maxfev=10000)
                 y_fit = malus_model(x_data, *popt)
 
                 # Formula text
@@ -298,11 +336,22 @@ class PolarizationFitApp:
                 # Dense evaluation for smooth plot
                 x_dense = np.linspace(np.min(x_data), np.max(x_data), 500)
                 y_dense = malus_model(x_dense, *popt)
-                fit_func = lambda theta1, theta2=0.0: malus_model(theta1, *popt)
+                fit_func = lambda theta1: malus_model(theta1, *popt)
 
             elif formula_idx == 1:
                 # Sine Wave Fit
-                p0_init = [np.std(y_data) * np.sqrt(2), 2 * np.pi / (np.max(x_data) - np.min(x_data) + 1e-5), 0.0, np.mean(y_data)]
+                # Smarter frequency guess: estimate by zero-crossings around the mean
+                y_centered = y_data - np.mean(y_data)
+                crossings = np.where(np.diff(np.sign(y_centered)))[0]
+                if len(crossings) >= 2:
+                    period_guess = 2.0 * np.abs(x_data[crossings[1]] - x_data[crossings[0]])
+                    w_guess = 2.0 * np.pi / max(period_guess, 1e-5)
+                else:
+                    w_guess = 2.0 * np.pi / (np.max(x_data) - np.min(x_data) + 1e-5)
+                
+                amp_guess = (np.max(y_data) - np.min(y_data)) / 2.0
+                
+                p0_init = [amp_guess, w_guess, 0.0, np.mean(y_data)]
                 popt, _ = curve_fit(sine_model, x_data, y_data, p0=p0_init, maxfev=10000)
                 y_fit = sine_model(x_data, *popt)
 
@@ -314,7 +363,7 @@ class PolarizationFitApp:
 
                 x_dense = np.linspace(np.min(x_data), np.max(x_data), 500)
                 y_dense = sine_model(x_dense, *popt)
-                fit_func = lambda x, x2=0.0: sine_model(x, *popt)
+                fit_func = lambda x: sine_model(x, *popt)
 
             elif formula_idx == 2:
                 # Linear Fit
@@ -327,9 +376,9 @@ class PolarizationFitApp:
 
                 x_dense = np.linspace(np.min(x_data), np.max(x_data), 500)
                 y_dense = linear_model(x_dense, *popt)
-                fit_func = lambda x, x2=0.0: linear_model(x, *popt)
+                fit_func = lambda x: linear_model(x, *popt)
 
-            else:
+            elif formula_idx == 3:
                 # Polynomial Deg 2 Fit
                 popt, _ = curve_fit(poly2_model, x_data, y_data)
                 y_fit = poly2_model(x_data, *popt)
@@ -341,7 +390,37 @@ class PolarizationFitApp:
 
                 x_dense = np.linspace(np.min(x_data), np.max(x_data), 500)
                 y_dense = poly2_model(x_dense, *popt)
-                fit_func = lambda x, x2=0.0: poly2_model(x, *popt)
+                fit_func = lambda x: poly2_model(x, *popt)
+                
+            elif formula_idx == 4 or formula_idx == 5:
+                # Raw Data Interpolation (4 = Linear, 5 = Cubic)
+                from scipy.interpolate import interp1d
+                kind = 'linear' if formula_idx == 4 else 'cubic'
+                
+                # Make sure x_data is strictly increasing for interp1d
+                sort_idx = np.argsort(x_data)
+                x_sorted = x_data[sort_idx]
+                y_sorted = y_data[sort_idx]
+                
+                # Remove duplicates if any
+                x_unique, unique_indices = np.unique(x_sorted, return_index=True)
+                y_unique = y_sorted[unique_indices]
+                
+                if len(x_unique) < (4 if kind == 'cubic' else 2):
+                    QMessageBox.warning(self.ui, "Warning", f"Not enough unique points for {kind} interpolation.")
+                    return
+                
+                interp_f = interp1d(x_unique, y_unique, kind=kind, fill_value="extrapolate")
+                
+                y_fit = interp_f(x_data)
+                popt = [0]
+                
+                formula_str = f"Raw Data Interpolation ({kind.capitalize()})\n" \
+                              f"  Connects raw points directly without a formula.\n"
+                
+                x_dense = np.linspace(np.min(x_data), np.max(x_data), 500)
+                y_dense = interp_f(x_dense)
+                fit_func = lambda x: interp_f(x)
 
             # Goodness of fit statistics
             r2 = calculate_r_squared(y_data, y_fit)
@@ -367,7 +446,7 @@ class PolarizationFitApp:
 
     @Slot()
     def calculate_prediction(self):
-        """Use fitted formula parameters to predict output for target input angles."""
+        """Use fitted formula parameters to predict output for target input angles, and reverse calculate angle for target power."""
         if not hasattr(self, "fitted_func") or self.fitted_func is None:
             QMessageBox.warning(self.ui, "Warning", "Please run curve fitting first before calculating predictions.")
             return
@@ -377,20 +456,112 @@ class PolarizationFitApp:
         val2 = self.ui.spin_calc_in2.value()
 
         try:
-            pred_val = self.fitted_func(val1, val2)
+            pred_val = self.fitted_func(val1)
+            
             if mode_idx == 0:
-                # Power prediction
-                result_str = f"Predicted Power = {pred_val:.4f} mW"
-                self.ui.lbl_calc_result.setText(f"Prediction Result: {pred_val:.4f} mW")
+                # Power prediction (Forward: Angle -> Power, Reverse: Power -> Angle)
+                target_power = val2
+                # Reverse calculate angle using fsolve, with val1 as the initial guess
+                def equation_to_solve(x):
+                    return self.fitted_func(x) - target_power
+                
+                # fsolve returns an array, we take the first element
+                calc_angle = fsolve(equation_to_solve, x0=val1)[0]
+                
+                result_str = f"Target {val1}° -> {pred_val:.4f} mW\nTarget {target_power} mW -> {calc_angle:.2f} °"
+                self.ui.lbl_calc_result.setText(result_str)
+                self.log(f"Calc: [Angle {val1}° -> {pred_val:.4f} mW] | [Power {target_power} mW -> {calc_angle:.4f}°]")
             else:
-                # Stage 1 relative step prediction
-                result_str = f"Required Stage 1 Angle/Step = {pred_val:.2f} °"
-                self.ui.lbl_calc_result.setText(f"Prediction Result: {pred_val:.2f} °")
-
-            self.log(f"Calculator Prediction -> Input 1: {val1}°, Input 2: {val2}° ==> {result_str}")
+                # Stage 1 relative step prediction (Forward and Reverse)
+                target_step = val2
+                def equation_to_solve(x):
+                    return self.fitted_func(x) - target_step
+                calc_angle = fsolve(equation_to_solve, x0=val1)[0]
+                
+                result_str = f"Target {val1}° -> Step {pred_val:.2f} °\nTarget Step {target_step}° -> Angle {calc_angle:.2f} °"
+                self.ui.lbl_calc_result.setText(result_str)
+                self.log(f"Calc: [Angle {val1}° -> Step {pred_val:.2f}°] | [Step {target_step}° -> Angle {calc_angle:.4f}°]")
         except Exception as exc:
             self.log(f"Calculator error: {exc}")
             QMessageBox.critical(self.ui, "Calculator Error", f"Calculation failed: {exc}")
+
+    @Slot()
+    def export_dense_csv(self):
+        """Export the currently fitted/interpolated curve to a dense CSV file."""
+        if not hasattr(self, "fitted_func") or self.fitted_func is None:
+            QMessageBox.warning(self.ui, "Warning", "Please run curve fitting or interpolation first.")
+            return
+            
+        if not self.loaded_data:
+            return
+            
+        mode_idx = self.ui.combo_fit_mode.currentIndex()
+        s1 = self.loaded_data.get("stage1", np.array([]))
+        s2 = self.loaded_data.get("stage2", np.array([]))
+        
+        if mode_idx == 0:
+            x_data = s1[~np.isnan(s1)]
+        else:
+            x_data = s2[~np.isnan(s2)]
+            
+        if len(x_data) == 0:
+            return
+            
+        from PySide6.QtWidgets import QInputDialog
+        step, ok = QInputDialog.getDouble(
+            self.ui, "Export Step Size", 
+            "Enter the interpolation step size (°):", 
+            0.5, 0.01, 10.0, 2
+        )
+        
+        if not ok:
+            return
+            
+        x_min, x_max = np.min(x_data), np.max(x_data)
+        x_export = np.arange(x_min, x_max + step, step)
+        
+        try:
+            y_export = self.fitted_func(x_export)
+        except Exception as exc:
+            QMessageBox.critical(self.ui, "Export Error", f"Failed to generate dense data: {exc}")
+            return
+            
+        save_path, _ = QFileDialog.getSaveFileName(
+            self.ui, "Save Dense CSV", 
+            str(Path(__file__).parent / "cali_data" / "dense_cali.csv"), 
+            "CSV Files (*.csv)"
+        )
+        
+        if not save_path:
+            return
+            
+        try:
+            if mode_idx == 0:
+                # Angle vs Power
+                df = pd.DataFrame({
+                    "Point_Idx": range(len(x_export)),
+                    "Stage1_deg": np.round(x_export, 2),
+                    "Stage2_deg": np.zeros(len(x_export)),
+                    "Stage3_deg": np.zeros(len(x_export)),
+                    "Power_mW": np.round(y_export, 4),
+                    "Stable": [True] * len(x_export)
+                })
+            else:
+                # Stage 2 vs Stage 1 Step
+                df = pd.DataFrame({
+                    "Point_Idx": range(len(x_export)),
+                    "Stage1_deg": np.round(y_export, 2),
+                    "Stage2_deg": np.round(x_export, 2),
+                    "Stage3_deg": np.zeros(len(x_export)),
+                    "Power_mW": np.zeros(len(x_export)),
+                    "Stable": [True] * len(x_export)
+                })
+            
+            df.to_csv(save_path, index=False)
+            self.log(f"Exported dense CSV to: {save_path} ({len(x_export)} points)")
+            QMessageBox.information(self.ui, "Export Successful", f"Dense CSV exported successfully!\nPoints generated: {len(x_export)}")
+        except Exception as exc:
+            QMessageBox.critical(self.ui, "Export Error", f"Failed to save CSV: {exc}")
 
     @Slot()
     def exit_app(self):
