@@ -1204,11 +1204,11 @@ class moSys:
 
         wait_time_ms = self.ui.wait1.value() / 1000  # wait time in seconds from UI
 
-        def run_single_pass(pass_no: int, pass_center: float) -> dict:
+        def run_single_pass(pass_no: int, pass_center: float, pass_step: float) -> dict:
             """Scan the local window once around pass_center and return the analyzed peak result."""
-            # +/-20 steps around the centre -> exactly 40 positions (offsets -20 .. +19)
+            # +/-30 steps around the centre -> exactly 60 positions (offsets -30 .. +29)
             pos_seq_stage1 = ScanDataCore.build_peak_tracking_positions(
-                pass_center, step_mm, points_before_center=20, points_after_center=20
+                pass_center, pass_step, points_before_center=30, points_after_center=30
             )
             peak_samples = []
 
@@ -1225,7 +1225,7 @@ class moSys:
                     print("Peak-tracking scan interrupted before moving to the next stage position.")
                     return stopped_peak_result()
 
-                print(f"TDS/peak-tracking round {pass_no}/3 progress: {idx}/{total} positions...")
+                print(f"TDS/peak-tracking round {pass_no}/2 progress: {idx}/{total} positions...")
                 try:
                     self.stage1.move_to(pos)
                 except Exception as e:
@@ -1239,7 +1239,8 @@ class moSys:
 
                 time.sleep(wait_time_ms)  # wait for stage to settle
 
-                # Take a single reading per position; noise rejection comes from the 3 converging rounds.
+                # Take a single reading per position; the coarse round localises the peak and the
+                # fine round refines it.
                 if self._check_scan_stop(thread):
                     print("Peak-tracking scan interrupted during sampling.")
                     return stopped_peak_result()
@@ -1258,22 +1259,36 @@ class moSys:
 
             return ScanDataCore.analyze_peak_samples(peak_samples)
 
-        # Run the local peak search for 3 converging rounds: each round re-centers on the
-        # previous round's found peak, so the final position is robust against single-pass noise/drift.
+        # Two-round coarse-to-fine search.
+        # Round 1 sweeps with COARSE_STEP_FACTOR x the step, covering +/-30*N steps instead of
+        # +/-30, so the peak is still found after the large thermal expansion that comes with a
+        # wide temperature range. The factor stays small because this is an ultra-broadband THz
+        # pulse (~40 fs FWHM, only ~6 um of stage travel): a large coarse step would sample right
+        # over the top of the peak and miss it.
+        # Round 2 re-centres on the coarse result and refines at the normal step.
+        COARSE_STEP_FACTOR = 3
+
         tds_max_positions = {'status': 'failed', 'max_position': None, 'max_lockin1X': None, 'positions': [], 'lockin1X': []}
-        for pass_no in range(1, 4):
-            tds_max_positions = run_single_pass(pass_no, center_pos)
+        for pass_no in range(1, 3):
+            pass_step = step_mm * COARSE_STEP_FACTOR if pass_no == 1 else step_mm
+            pass_kind = 'coarse' if pass_no == 1 else 'fine'
+            print(
+                f"Peak-tracking round {pass_no}/2 ({pass_kind}): step {pass_step * 1000:.3f} um, "
+                f"range +/-{30 * pass_step * 1000:.1f} um around {center_pos} mm."
+            )
+
+            tds_max_positions = run_single_pass(pass_no, center_pos, pass_step)
             if tds_max_positions['status'] != 'ok':
-                print(f"Peak-tracking round {pass_no}/3 found no valid peak; stopping search.")
+                print(f"Peak-tracking round {pass_no}/2 ({pass_kind}) found no valid peak; stopping search.")
                 return tds_max_positions
             center_pos = tds_max_positions['max_position']
             print(
-                f"Peak-tracking round {pass_no}/3 complete. Max Lockin1 X: {tds_max_positions['max_lockin1X']} "
-                f"at position: {center_pos} mm."
+                f"Peak-tracking round {pass_no}/2 ({pass_kind}) complete. Max Lockin1 X: "
+                f"{tds_max_positions['max_lockin1X']} at position: {center_pos} mm."
             )
 
         print(
-            f"TDS scan complete after 3 rounds. Max Lockin1 X: {tds_max_positions['max_lockin1X']} "
+            f"TDS scan complete after 2 rounds. Max Lockin1 X: {tds_max_positions['max_lockin1X']} "
             f"at position: {tds_max_positions['max_position']} mm."
         )
 

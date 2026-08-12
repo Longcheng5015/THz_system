@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1539</width>
+    <width>1545</width>
     <height>871</height>
    </rect>
   </property>
@@ -15,6 +15,9 @@
     <horstretch>0</horstretch>
     <verstretch>0</verstretch>
    </sizepolicy>
+  </property>
+  <property name="focusPolicy">
+   <enum>Qt::FocusPolicy::NoFocus</enum>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
@@ -5702,11 +5705,11 @@ QProgressBar::chunk {
               <property name="title">
                <string>GroupBox</string>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_96">
-               <item>
+              <layout class="QGridLayout" name="gridLayout_3">
+               <item row="0" column="0">
                 <layout class="QVBoxLayout" name="verticalLayout_93">
                  <item>
-                  <layout class="QHBoxLayout" name="horizontalLayout_38" stretch="2,1">
+                  <layout class="QHBoxLayout" name="horizontalLayout_32">
                    <item>
                     <layout class="QHBoxLayout" name="horizontalLayout_37" stretch="1,3,3,3">
                      <property name="spacing">
@@ -5922,70 +5925,83 @@ QProgressBar::chunk {
                     </layout>
                    </item>
                    <item>
-                    <layout class="QHBoxLayout" name="horizontalLayout_32">
+                    <layout class="QVBoxLayout" name="verticalLayout_16">
                      <property name="spacing">
                       <number>0</number>
                      </property>
                      <item>
-                      <layout class="QVBoxLayout" name="verticalLayout_16">
-                       <property name="spacing">
-                        <number>0</number>
+                      <widget class="QPushButton" name="Del_T">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
                        </property>
-                       <item>
-                        <widget class="QPushButton" name="Del_T">
-                         <property name="sizePolicy">
-                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                           <horstretch>0</horstretch>
-                           <verstretch>0</verstretch>
-                          </sizepolicy>
-                         </property>
-                         <property name="maximumSize">
-                          <size>
-                           <width>50</width>
-                           <height>30</height>
-                          </size>
-                         </property>
-                         <property name="font">
-                          <font>
-                           <pointsize>10</pointsize>
-                          </font>
-                         </property>
-                         <property name="text">
-                          <string>Del T</string>
-                         </property>
-                         <property name="mytype" stdset="0">
-                          <string>clickable_button</string>
-                         </property>
-                        </widget>
-                       </item>
-                       <item>
-                        <widget class="QPushButton" name="add_T">
-                         <property name="sizePolicy">
-                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                           <horstretch>0</horstretch>
-                           <verstretch>0</verstretch>
-                          </sizepolicy>
-                         </property>
-                         <property name="maximumSize">
-                          <size>
-                           <width>50</width>
-                           <height>30</height>
-                          </size>
-                         </property>
-                         <property name="font">
-                          <font>
-                           <pointsize>10</pointsize>
-                          </font>
-                         </property>
-                         <property name="text">
-                          <string>Add T</string>
-                         </property>
-                         <property name="mytype" stdset="0">
-                          <string>clickable_button</string>
-                         </property>
-                        </widget>
-                       </item>
-                      </layout>
+                       <property name="maximumSize">
+                        <size>
+                         <width>50</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="font">
+                        <font>
+                         <pointsize>10</pointsize>
+                        </font>
+                       </property>
+                       <property name="text">
+                        <string>Del T</string>
+                       </property>
+                       <property name="mytype" stdset="0">
+                        <string>clickable_button</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QPushButton" name="add_T">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>50</width>
+                         <height>30</height>
+                        </size>
+                       </property>
+                       <property name="font">
+                        <font>
+                         <pointsize>10</pointsize>
+                        </font>
+                       </property>
+                       <property name="text">
+                        <string>Add T</string>
+                       </property>
+                       <property name="mytype" stdset="0">
+                        <string>clickable_button</string>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
+                   <item>
+                    <layout class="QVBoxLayout" name="verticalLayout_72">
+                     <property name="spacing">
+                      <number>0</number>
+                     </property>
+                     <item>
+                      <widget class="QSpinBox" name="WaitSamStable">
+                       <property name="toolTip">
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Wait T stable (min.): &lt;/span&gt;Additional wait time for the sample temperature to stabilize, preventing thermal expansion or contraction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                       </property>
+                       <property name="buttonSymbols">
+                        <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                       </property>
+                       <property name="value">
+                        <number>10</number>
+                       </property>
+                      </widget>
                      </item>
                      <item>
                       <widget class="QPushButton" name="Clear_T">
@@ -5998,7 +6014,7 @@ QProgressBar::chunk {
                        <property name="maximumSize">
                         <size>
                          <width>60</width>
-                         <height>40</height>
+                         <height>30</height>
                         </size>
                        </property>
                        <property name="font">
