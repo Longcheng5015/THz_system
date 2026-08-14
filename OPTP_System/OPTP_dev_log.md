@@ -174,6 +174,18 @@ This document records the overall development and debugging history for the OPTP
   - Not changed: no temperature re-check was added after the soak wait. It is unnecessary - the MercuryiTC regulates in hardware (`enable_auto_pid_table` / `enable_pid_control` are one-shot writes, the stabilization thread only observes), and `MercuryiTC_Updater` keeps polling in its own thread with `realtimeDispT` whitelisted in `set_ControlsEnabledDuringScan()`, so the temperature stays controlled and visibly displayed throughout the soak.
 - Verification: `python -m py_compile` passes. All five `run()` exit paths were simulated against the caller's decision logic: only a genuine settle proceeds to the soak and the scan; iTC-not-connected, missing UID, a read exception and a user stop all abort.
 
+### v2.6
+- Date: 2026-08-14
+- Main change: Initialized v2.6 version copies (`OPTP_system_iTC_v2.6.py` and `OPTP_iTC_main_v2.6.ui`) from v2.5, and fixed "Close Instr." closing every instrument regardless of its 'active' checkbox.
+- Details:
+  - Duplicated main executable script and Qt UI layout file for v2.6 development; linked `OPTP_system_iTC_v2.6.py` to load `OPTP_iTC_main_v2.6.ui`.
+  - Problem: every block in `closeInstruments()` tested only `if self.<device>:` - i.e. "is it connected" - and never the matching `active*` checkbox, unlike `connectInstruments()` which gates each block on `if self.ui.activeXxx.isChecked():`. Unticking a box and pressing "Close Instr." therefore also dropped the instruments the user intended to keep.
+  - Fix: added a `should_close(active_box_name)` helper and gated each device on it, mirroring the `connectInstruments()` convention.
+  - `closeInstruments()` gained an `only_active: bool = True` parameter. The button closes only ticked instruments; `exitApp()` now calls `closeInstruments(only_active=False)` so that anything still open is released on exit - otherwise a connected but unticked instrument would keep its handle and leave the port locked after the application quit.
+  - The `iTCstabilizeThread` shutdown at the top of the function is now gated on actually closing the MercuryiTC (`closing_itc`). It calls `request_stop()`, which also raises the main `stop_flag` and would abort a running scan; that must not happen merely because some unrelated instrument is being closed.
+  - The button connection was rewritten as `clicked.connect(lambda: self.closeInstruments(only_active=True), False)`. This is required, not cosmetic: `clicked` emits a `checked` bool, and with the old direct connection Qt passes it into the slot's first parameter. Verified empirically - a direct connection sets `only_active=False`, silently defeating the whole fix, while the lambda keeps it True.
+- Verification: `python -m py_compile` passes. The real `closeInstruments()` was extracted from the source and executed against stub instruments in three scenarios: with only Stage1 and Lock-in 1 ticked the button closed exactly those two and left the other six connected; with `only_active=False` (the exit path) all eight were released even though only one box was ticked; and with nothing ticked the button closed nothing. Not yet exercised against real hardware.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 
