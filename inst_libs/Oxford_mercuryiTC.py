@@ -126,16 +126,20 @@ class MercuryiTC:
         time.sleep(0.3)  # Wait for instrument to be ready
         
     def close(self) -> None:
-        """Close connection to instrument."""
+        """Close this instrument's VISA session.
+
+        The ResourceManager is deliberately NOT closed here. pyvisa.ResourceManager() is a
+        process-wide singleton, so every instrument in the application holds the same object;
+        closing it would invalidate the sessions of all the other instruments (and raise
+        VI_ERROR_INV_OBJECT while walking resources that are already dead). It is released at
+        interpreter exit.
+        """
         try:
             if self._inst is not None:
-                
                 self._inst.close()
         finally:
             self._inst = None
-            if self._rm is not None:
-                self._rm.close()
-                self._rm = None
+            self._rm = None   # drop our reference only; the shared manager stays alive
     
     def __enter__(self) -> "MercuryiTC":
         self.open()
