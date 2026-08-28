@@ -370,6 +370,11 @@ class MercuryiTC:
         
         return success
     
+    def get_pid_control_state(self, uid: str) -> bool:
+        """Read whether the loop's automatic PID control is currently enabled."""
+        response = self.query(f"READ:DEV:{uid}:TEMP:LOOP:ENAB")
+        return self._parse_value(response).upper() == "ON"
+
     def enable_auto_pid_table(self, uid: str, enable: bool = True) -> bool:
         """Enable or disable automatic PID parameters set from table."""
         state = "ON" if enable else "OFF"
@@ -489,15 +494,21 @@ class MercuryiTC:
         value = self._parse_value(response)
         return float(value.rstrip('V'))
     
-    def set_heater_manual(self, uid: str, percent: float) -> bool:
+    def set_heater_manual(self, temp_uid: str, percent: float) -> bool:
         """
-        Set heater output manually (manual control mode).
+        Set heater output manually as a percentage of full power (manual control mode).
+
+        HSET belongs to the temperature control LOOP, not to the heater device, so it is
+        addressed by the *temperature sensor* UID - the same UID used by TSET / P / I / D /
+        ENAB / PIDT above. The previous "SET:DEV:<heater uid>:HTR:SIG:HSET" form mixed the
+        two subsystems; it had no callers anywhere in the project, so correcting it here
+        cannot regress existing behaviour.
         
         Args:
-            uid: Heater UID
-            percent: Heater power as percentage (0-100)
+            temp_uid: Temperature sensor UID owning the loop (e.g. "MB1.T1")
+            percent: Heater output as a percentage of full power (0-100)
         """
-        response = self.query(f"SET:DEV:{uid}:HTR:SIG:HSET:{percent}")
+        response = self.query(f"SET:DEV:{temp_uid}:TEMP:LOOP:HSET:{percent}")
         value = self._parse_value(response)
         success = (value == 'VALID')
         
@@ -506,6 +517,12 @@ class MercuryiTC:
         
         return success
     
+    def get_heater_manual(self, temp_uid: str) -> float:
+        """Read the loop's manual heater setting, as a percentage of full power."""
+        response = self.query(f"READ:DEV:{temp_uid}:TEMP:LOOP:HSET")
+        value = self._parse_value(response)
+        return self._parse_unit_value(value)
+
     # ==================== Auxiliary I/O Commands ====================
     
     def read_gas_flow(self, uid: str = "DB4.G1") -> float:
