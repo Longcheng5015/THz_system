@@ -526,17 +526,25 @@ class moSys:
                 print("Rotary1 is already connected.")
                 
             else:
+                rotary1_temp = None
                 try:
                     serial = "27004364"  # Replace with your controller serial: 73844983
                     chan = 1
-                    self.rotary1 = RotaryStage(serial, poll_ms=250, use_sim=False)               
-                    self.rotary1.home(60000)  # home the stage
+                    rotary1_temp = RotaryStage(serial, poll_ms=250, use_sim=False)
+                    rotary1_temp.home(60000)  # home the stage
+                    self.rotary1 = rotary1_temp
                     self.qwait_time(1000)  # wait for 1 seconds after connect
                     self.ui.rot1CurrPos.setValue(self.rotary1.position())  # update current position display
                     self.ui.rotary1Led.status = True  # update LED indicator
                     QApplication.processEvents()  # Ensure UI updates immediately
                     print(f"✓ Rotary1 connection successful (serial: {serial}, channel: {chan})")
                 except Exception as e: 
+                    try:
+                        if rotary1_temp is not None:
+                            rotary1_temp.close()
+                    except Exception:
+                        pass
+                    self.rotary1 = None
                     print(f"✗ Rotary1 connection failed: {str(e)}")
                 
         # connect Rotary2
@@ -545,17 +553,25 @@ class moSys:
                 print("Rotary2 is already connected.")
                 
             else:
+                rotary2_temp = None
                 try:
                     serial = "27255894"  # Replace with your controller serial
                     chan = 1
-                    self.rotary2 = RotaryStage(serial, poll_ms=250, use_sim=False)                
-                    self.rotary2.home(60000)  # home the rotary stage
+                    rotary2_temp = RotaryStage(serial, poll_ms=250, use_sim=False)
+                    rotary2_temp.home(60000)  # home the rotary stage
+                    self.rotary2 = rotary2_temp
                     self.qwait_time(1000)  # wait for 2 seconds after connect
                     self.ui.rot2CurrPos.setValue(self.rotary2.position())  # update current position display
                     self.ui.rotary2Led.status = True  # update LED indicator
                     QApplication.processEvents()  # Ensure UI updates immediately
                     print(f"✓ Rotary2 connection successful (serial: {serial})")
                 except Exception as e: 
+                    try:
+                        if rotary2_temp is not None:
+                            rotary2_temp.close()
+                    except Exception:
+                        pass
+                    self.rotary2 = None
                     print(f"✗ Rotary2 connection failed: {str(e)}")
         
         # connect Rotary3
@@ -564,17 +580,25 @@ class moSys:
                 print("Rotary3 is already connected.")
                 
             else:
+                rotary3_temp = None
                 try:
                     serial = "27255894"  # Replace with your controller serial
                     chan = 2
-                    self.rotary3 = RotaryStage(serial, poll_ms=250, use_sim=False)                
-                    self.rotary3.home(60000)  # home the rotary stage
+                    rotary3_temp = RotaryStage(serial, poll_ms=250, use_sim=False)
+                    rotary3_temp.home(60000)  # home the rotary stage
+                    self.rotary3 = rotary3_temp
                     self.qwait_time(1000)  # wait for 1 seconds after connect
                     self.ui.rot3CurrPos.setValue(self.rotary3.position())  # update current position display
                     self.ui.rotary3Led.status = True  # update LED indicator
                     QApplication.processEvents()  # Ensure UI updates immediately
                     print(f"✓ Rotary3 connection successful (serial: {serial})")
                 except Exception as e: 
+                    try:
+                        if rotary3_temp is not None:
+                            rotary3_temp.close()
+                    except Exception:
+                        pass
+                    self.rotary3 = None
                     print(f"✗ Rotary3 connection failed: {str(e)}")
                 
         # connect MercuryiTC temperature controller
@@ -1842,6 +1866,20 @@ class moSys:
                 pol_rep=pol_rep,
             )
             scan_iterator = iterator_plan['scan_iterator']
+
+            # 2D_THz must record one full time-domain trace at each pump delay, so stage1 is the
+            # fastest axis and stage2 steps outside it. build_scan_iterator() lives in the shared
+            # func_cores module and yields stage2 innermost, so the order is rebuilt here instead
+            # of changing the shared planner. The tuple layout is unchanged:
+            # (stage1_flat_idx, stage2_flat_idx, pol_flat_idx).
+            if scan_mode == '2D_THz':
+                scan_iterator = (
+                    (stage1_flat, stage2_flat, pol_flat)
+                    for pol_flat in range(iterator_plan['pol_total'])
+                    for stage2_flat in range(iterator_plan['stage2_total'])
+                    for stage1_flat in range(iterator_plan['stage1_total'])
+                )
+                print("2D_THz: stage1 set as the innermost (fastest) scan axis.")
                 
             print(f"Generated position scan_iterator indexes for all stages: {scan_iterator}")
             #endregion
