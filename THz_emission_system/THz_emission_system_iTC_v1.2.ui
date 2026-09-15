@@ -3601,6 +3601,54 @@ QProgressBar::chunk {
                  <item>
                   <layout class="QHBoxLayout" name="horizontalLayout_15">
                    <item>
+                    <layout class="QVBoxLayout" name="verticalLayout_40">
+                     <property name="spacing">
+                      <number>3</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="label_34">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="text">
+                        <string>Step NO.</string>
+                       </property>
+                       <property name="mytype" stdset="0">
+                        <string>label</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QSpinBox" name="rotary2StepNO">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>48</width>
+                         <height>24</height>
+                        </size>
+                       </property>
+                       <property name="buttonSymbols">
+                        <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                       </property>
+                       <property name="maximum">
+                        <number>10000</number>
+                       </property>
+                       <property name="value">
+                        <number>1</number>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
+                   <item>
                     <layout class="QVBoxLayout" name="verticalLayout_94">
                      <property name="spacing">
                       <number>3</number>
@@ -3671,54 +3719,6 @@ QProgressBar::chunk {
                      </item>
                      <item>
                       <widget class="QSpinBox" name="Rot2CurrScan">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="maximumSize">
-                        <size>
-                         <width>48</width>
-                         <height>24</height>
-                        </size>
-                       </property>
-                       <property name="buttonSymbols">
-                        <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
-                       </property>
-                       <property name="maximum">
-                        <number>10000</number>
-                       </property>
-                       <property name="value">
-                        <number>1</number>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </item>
-                   <item>
-                    <layout class="QVBoxLayout" name="verticalLayout_40">
-                     <property name="spacing">
-                      <number>3</number>
-                     </property>
-                     <item>
-                      <widget class="QLabel" name="label_34">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="text">
-                        <string>Step NO.</string>
-                       </property>
-                       <property name="mytype" stdset="0">
-                        <string>label</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QSpinBox" name="rotary2StepNO">
                        <property name="sizePolicy">
                         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                          <horstretch>0</horstretch>
@@ -3865,11 +3865,14 @@ QProgressBar::chunk {
               <property name="title">
                <string>Rot3</string>
               </property>
-              <layout class="QVBoxLayout" name="verticalLayout_99">
+              <layout class="QVBoxLayout" name="verticalLayout_97">
+               <property name="topMargin">
+                <number>0</number>
+               </property>
                <item>
-                <layout class="QVBoxLayout" name="verticalLayout_98">
+                <layout class="QVBoxLayout" name="verticalLayout_96">
                  <item>
-                  <layout class="QHBoxLayout" name="horizontalLayout_47" stretch="1,2,0">
+                  <layout class="QHBoxLayout" name="horizontalLayout_47" stretch="1,2,0,0">
                    <property name="spacing">
                     <number>6</number>
                    </property>
@@ -3884,7 +3887,7 @@ QProgressBar::chunk {
                      <item>
                       <widget class="QCheckBox" name="activeRot3">
                        <property name="sizePolicy">
-                        <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                          <horstretch>0</horstretch>
                          <verstretch>0</verstretch>
                         </sizepolicy>
@@ -3939,16 +3942,16 @@ QProgressBar::chunk {
                    <item>
                     <layout class="QVBoxLayout" name="verticalLayout_73">
                      <property name="spacing">
-                      <number>0</number>
+                      <number>3</number>
                      </property>
                      <property name="leftMargin">
-                      <number>12</number>
+                      <number>0</number>
                      </property>
                      <property name="topMargin">
-                      <number>9</number>
+                      <number>0</number>
                      </property>
                      <property name="rightMargin">
-                      <number>12</number>
+                      <number>0</number>
                      </property>
                      <item>
                       <widget class="QLabel" name="label_52">
@@ -4000,6 +4003,54 @@ QProgressBar::chunk {
                     </layout>
                    </item>
                    <item>
+                    <layout class="QVBoxLayout" name="verticalLayout_76">
+                     <property name="spacing">
+                      <number>3</number>
+                     </property>
+                     <item>
+                      <widget class="QLabel" name="label_53">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="text">
+                        <string>Step(°/mm)</string>
+                       </property>
+                       <property name="mytype" stdset="0">
+                        <string>label</string>
+                       </property>
+                      </widget>
+                     </item>
+                     <item>
+                      <widget class="QDoubleSpinBox" name="rotary3Step">
+                       <property name="sizePolicy">
+                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                         <horstretch>0</horstretch>
+                         <verstretch>0</verstretch>
+                        </sizepolicy>
+                       </property>
+                       <property name="maximumSize">
+                        <size>
+                         <width>48</width>
+                         <height>24</height>
+                        </size>
+                       </property>
+                       <property name="buttonSymbols">
+                        <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                       </property>
+                       <property name="decimals">
+                        <number>3</number>
+                       </property>
+                       <property name="value">
+                        <double>0.300000000000000</double>
+                       </property>
+                      </widget>
+                     </item>
+                    </layout>
+                   </item>
+                   <item>
                     <widget class="QFrame" name="rotary3Manual">
                      <property name="mytype" stdset="0">
                       <string>inst_manu</string>
@@ -4009,10 +4060,10 @@ QProgressBar::chunk {
                        <number>0</number>
                       </property>
                       <property name="leftMargin">
-                       <number>12</number>
+                       <number>6</number>
                       </property>
                       <property name="rightMargin">
-                       <number>12</number>
+                       <number>6</number>
                       </property>
                       <item>
                        <layout class="QHBoxLayout" name="horizontalLayout_25">
@@ -4172,54 +4223,6 @@ QProgressBar::chunk {
                     <number>12</number>
                    </property>
                    <item>
-                    <layout class="QVBoxLayout" name="verticalLayout_76">
-                     <property name="spacing">
-                      <number>3</number>
-                     </property>
-                     <item>
-                      <widget class="QLabel" name="label_53">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="text">
-                        <string>Step(°/mm)</string>
-                       </property>
-                       <property name="mytype" stdset="0">
-                        <string>label</string>
-                       </property>
-                      </widget>
-                     </item>
-                     <item>
-                      <widget class="QDoubleSpinBox" name="rotary3Step">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
-                       </property>
-                       <property name="maximumSize">
-                        <size>
-                         <width>48</width>
-                         <height>24</height>
-                        </size>
-                       </property>
-                       <property name="buttonSymbols">
-                        <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
-                       </property>
-                       <property name="decimals">
-                        <number>3</number>
-                       </property>
-                       <property name="value">
-                        <double>0.300000000000000</double>
-                       </property>
-                      </widget>
-                     </item>
-                    </layout>
-                   </item>
-                   <item>
                     <layout class="QVBoxLayout" name="verticalLayout_77">
                      <property name="spacing">
                       <number>3</number>
@@ -4369,12 +4372,34 @@ QProgressBar::chunk {
                   </layout>
                  </item>
                  <item>
-                  <layout class="QHBoxLayout" name="horizontalLayout_38" stretch="1,1,3">
+                  <layout class="QVBoxLayout" name="verticalLayout_85">
+                   <property name="spacing">
+                    <number>3</number>
+                   </property>
+                   <property name="leftMargin">
+                    <number>6</number>
+                   </property>
+                   <property name="rightMargin">
+                    <number>6</number>
+                   </property>
                    <item>
-                    <layout class="QVBoxLayout" name="verticalLayout_96">
-                     <property name="spacing">
-                      <number>0</number>
+                    <widget class="QLineEdit" name="cali_file_path">
+                     <property name="sizePolicy">
+                      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                       <horstretch>0</horstretch>
+                       <verstretch>0</verstretch>
+                      </sizepolicy>
                      </property>
+                     <property name="maximumSize">
+                      <size>
+                       <width>16777215</width>
+                       <height>16777215</height>
+                      </size>
+                     </property>
+                    </widget>
+                   </item>
+                   <item>
+                    <layout class="QHBoxLayout" name="horizontalLayout_38">
                      <item>
                       <widget class="QPushButton" name="Rot_stages_couple">
                        <property name="sizePolicy">
@@ -4395,7 +4420,7 @@ QProgressBar::chunk {
                         </font>
                        </property>
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Choose calibration method for polarization dependent measurement:&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Auto Cali.'&lt;/span&gt;:  automatically calibrate polarization dependence by setting synchronization correction angle_steps;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt; 'Cali. Data'&lt;/span&gt;:  import calibration data obtained from manually calibration  &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Rotation stage coupling:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Independent'&lt;/span&gt;: each rotation stage follows its own angle sequence; a stage whose step number is 1 stays at its initial angle and never moves;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Coupled'&lt;/span&gt;: Rotary1, Rotary2 and Rotary3 step together, one angle each per polarization point, so all three must be given the same number of steps;&lt;/p&gt;&lt;p&gt;Importing a calibration file forces coupled for that scan, whatever this button shows.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <property name="text">
                         <string>Independent</string>
@@ -4431,7 +4456,7 @@ QProgressBar::chunk {
                         </font>
                        </property>
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Choose calibration method for polarization dependent measurement:&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Auto Cali.'&lt;/span&gt;:  automatically calibrate polarization dependence by setting synchronization correction angle_steps;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt; 'Cali. Data'&lt;/span&gt;:  import calibration data obtained from manually calibration  &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Choose calibration method for polarization dependent measurement:&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Auto Cali.'&lt;/span&gt;:  automatically calibrate polarization dependence by setting synchronization correction angle_steps;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt; 'Manu. Cali.'&lt;/span&gt;:  import calibration data obtained from manually calibration  &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <property name="text">
                         <string>Auto Cali.</string>
@@ -4446,29 +4471,6 @@ QProgressBar::chunk {
                         <string>checkable_button</string>
                        </property>
                       </widget>
-                     </item>
-                    </layout>
-                   </item>
-                   <item>
-                    <layout class="QVBoxLayout" name="verticalLayout_97">
-                     <property name="spacing">
-                      <number>0</number>
-                     </property>
-                     <item>
-                      <spacer name="horizontalSpacer_12">
-                       <property name="orientation">
-                        <enum>Qt::Orientation::Horizontal</enum>
-                       </property>
-                       <property name="sizeType">
-                        <enum>QSizePolicy::Policy::Minimum</enum>
-                       </property>
-                       <property name="sizeHint" stdset="0">
-                        <size>
-                         <width>33</width>
-                         <height>20</height>
-                        </size>
-                       </property>
-                      </spacer>
                      </item>
                      <item>
                       <widget class="QPushButton" name="load_cali_file">
@@ -4500,31 +4502,21 @@ QProgressBar::chunk {
                        </property>
                       </widget>
                      </item>
-                    </layout>
-                   </item>
-                   <item>
-                    <layout class="QVBoxLayout" name="verticalLayout_85">
-                     <property name="spacing">
-                      <number>0</number>
-                     </property>
-                     <property name="rightMargin">
-                      <number>3</number>
-                     </property>
                      <item>
-                      <widget class="QLineEdit" name="cali_file_path">
-                       <property name="sizePolicy">
-                        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                         <horstretch>0</horstretch>
-                         <verstretch>0</verstretch>
-                        </sizepolicy>
+                      <spacer name="horizontalSpacer_12">
+                       <property name="orientation">
+                        <enum>Qt::Orientation::Horizontal</enum>
                        </property>
-                       <property name="maximumSize">
+                       <property name="sizeType">
+                        <enum>QSizePolicy::Policy::Minimum</enum>
+                       </property>
+                       <property name="sizeHint" stdset="0">
                         <size>
-                         <width>16777215</width>
-                         <height>16777215</height>
+                         <width>33</width>
+                         <height>20</height>
                         </size>
                        </property>
-                      </widget>
+                      </spacer>
                      </item>
                     </layout>
                    </item>
@@ -4547,6 +4539,9 @@ QProgressBar::chunk {
                <string>General Config.</string>
               </property>
               <layout class="QGridLayout" name="gridLayout_2">
+               <property name="topMargin">
+                <number>0</number>
+               </property>
                <item row="0" column="0">
                 <layout class="QHBoxLayout" name="horizontalLayout_24" stretch="3,4,3">
                  <property name="spacing">
