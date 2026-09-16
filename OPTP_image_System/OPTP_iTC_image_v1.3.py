@@ -139,6 +139,10 @@ class moSys:
 
         # Initialize comboboxe of Scan Mode
         self._init_scanMode_combobox()
+
+        # Placeholder text is shown greyed-out when empty and is NOT returned by text(),
+        # so an untouched box still counts as "no calibration file".
+        self.ui.cali_file_path.setPlaceholderText("Cali. file")
         #endregion
         
         #region Initialize LED indicators
@@ -1196,34 +1200,42 @@ class moSys:
         currRotary1Pos = -1; currRotary2Pos = -1
         currRotary3Pos = -1
         
+        # Names the axis being commanded, so a driver exception can say which one failed
+        # instead of just "Error moving active stages" - controllers do not name themselves.
+        moving_axis = None
         try:
             # move Stage1 if active
             if self.ui.activeStage1.isChecked() and self.stage1:
                 if abs(self.stage1.position() - stage1_pos) > 1e-4:
+                    moving_axis = f"Stage1 to {stage1_pos} mm"
                     self.stage1.move_to(stage1_pos) # in mm
                 currStage1Pos = round(self.stage1.position(), 3)  # # update current position display in mm
 
             # move Stage2 if active
             if self.ui.activeStage2.isChecked() and self.stage2:
                 if abs(self.stage2.position() - stage2_pos) > 1e-4:
+                    moving_axis = f"Stage2 to {stage2_pos} mm"
                     self.stage2.move_to(stage2_pos) # in mm
                 currStage2Pos = round(self.stage2.position(), 3)  # update current position display in mm
 
             # move Rotary1 if active
             if self.ui.activeRot1.isChecked() and self.rotary1:
                 if abs(self.rotary1.position() - rotary1_pos) > 1e-4:
+                    moving_axis = f"Rotary1 to {rotary1_pos} deg"
                     self.rotary1.move_to(rotary1_pos)
                 currRotary1Pos = round(self.rotary1.position(), 3)  # update current position display in degrees
 
             # move Rotary2 if active
             if self.ui.activeRot2.isChecked() and self.rotary2:
                 if abs(self.rotary2.position() - rotary2_pos) > 1e-4:
+                    moving_axis = f"Rotary2 to {rotary2_pos} deg"
                     self.rotary2.move_to(rotary2_pos)
                 currRotary2Pos = round(self.rotary2.position(), 3)  # update current position display in degrees
             
             # move Rotary3 if active
             if self.ui.activeRot3.isChecked() and self.rotary3:
                 if abs(self.rotary3.position() - rotary3_pos) > 1e-4:
+                    moving_axis = f"Rotary3 to {rotary3_pos} deg"
                     self.rotary3.move_to(rotary3_pos)
                 currRotary3Pos = round(self.rotary3.position(), 3)  # update current position display in degrees
 
@@ -1231,7 +1243,7 @@ class moSys:
 
             return True, currPositions
         except Exception as e:
-            print(f"Error moving active stages: {e}")
+            print(f"Error moving {moving_axis or 'active stages'}: {e}")
             return False, None
         #endregion
     
@@ -1586,6 +1598,50 @@ class moSys:
             pol_rot2_list = pol_plan['pol_rot2_list']
             pol_rot3_list = pol_plan['pol_rot3_list']
             N_pol = pol_plan['N_pol']
+            #endregion
+
+            #region Check the planned positions against the travel of each active axis
+            # A target outside the travel is only rejected when it is actually commanded, and the
+            # rotation stages sit in the outer loop, so one bad angle silently kills every point of
+            # that sweep. Everything is known here, so the whole plan is checked before anything moves.
+            travel_errors = []
+            for label, active_box, device, targets, unit in (
+                ('Stage1',  self.ui.activeStage1, self.stage1,  stage1_pos_sequence, 'mm'),
+                ('Stage2',  self.ui.activeStage2, self.stage2,  stage2_pos_sequence, 'mm'),
+                ('Rotary1', self.ui.activeRot1,   self.rotary1, pol_rot1_list,       'deg'),
+                ('Rotary2', self.ui.activeRot2,   self.rotary2, pol_rot2_list,       'deg'),
+                ('Rotary3', self.ui.activeRot3,   self.rotary3, pol_rot3_list,       'deg'),
+            ):
+                if not (active_box.isChecked() and device):
+                    continue
+                limits = getattr(device, 'travel_limits', None)
+                low, high = limits() if limits else (None, None)
+                if low is None or high is None:
+                    continue  # controller did not report a travel; the move itself still guards
+                # A rotary resolves a target itself (a full-turn axis wraps), so ask it rather than
+                # comparing against the raw limits, which would reject angles it handles fine.
+                resolve = getattr(device, 'resolve_target', None)
+                unreachable = []
+                for target in targets:
+                    if resolve is not None:
+                        try:
+                            resolve(target)
+                        except Exception:
+                            unreachable.append(target)
+                    elif not low <= target <= high:
+                        unreachable.append(target)
+                if unreachable:
+                    travel_errors.append(
+                        f"{label}: {len(unreachable)} of {len(targets)} planned positions are outside "
+                        f"its travel {low} .. {high} {unit}, e.g. {sorted(set(unreachable))[:3]}"
+                    )
+            if travel_errors:
+                error_msg = "Error: planned positions do not fit the stage travel.\n" + "\n".join(travel_errors)
+                print(error_msg)
+                thread.error_occurred.emit(error_msg)
+                if self.h5_file:
+                    self.h5_file.close()
+                return
             #endregion
 
             # create datasets: shape: meaning current size; maxshape: None means unlimited; chunks: chunk size for I/O; dtype: data type, f8: float64

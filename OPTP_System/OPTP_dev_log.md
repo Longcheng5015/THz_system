@@ -269,6 +269,58 @@ This document records the overall development and debugging history for the OPTP
   - `func_cores/scan_func_core.py` was NOT touched - the `'independent'` branch already existed there and simply had never been selected from this system,
   - verified: the .py parses, the .ui loads through QUiLoader, the button comes up checkable / unchecked / captioned `Independent` with the new tooltip, it shares its parent with `pol_cali_mode` inside `rotary3Group`, the .py points at the new .ui, and `rot_stages_coupled` is assigned before every use. Not yet exercised against real hardware.
 
+### v2.9 - Thorlabs stages skip homing when already homed
+- Date: 2026-09-15
+- Main change: the Thorlabs drivers now skip the homing move when the controller already reports the axis as homed, matching what the PI E-861 driver has always done. Connecting instruments after a Python restart no longer re-runs the full homing travel.
+- Details:
+  - `physik_E861.LinearStage.home()` has always checked `qFRF()` and returned early, but the three Thorlabs drivers called `Home(timeout_ms)` unconditionally, so every connect cost a full homing move per axis,
+  - all three already exposed `is_homed()`, and nothing in the project had ever called it - the only call sites were two prints in `inst_libs/test_pi_stage.py`,
+  - **`is_homed()` was broken and this change was what exposed it.** All three read `bool(<device>.IsHomed)`, but Kinesis does not put that property on the device object: the first real connection attempt failed with `'KCubeDCServo' object has no attribute 'IsHomed'`, and the rotary was correctly left as `None` by the guarded connection pattern,
+  - the correct location was then confirmed by reflecting over the installed Kinesis assemblies (no hardware needed): `KCubeDCServo` and `BrushlessMotorChannel` both expose only `CanHome` ("this axis supports homing"), while the motion state lives on their `Status` property of type `GenericMotorCLI.StatusBase`, which carries `IsHomed` alongside `IsHoming`, `IsEnabled`, `IsInMotion`, `IsAtHWLimit` and so on,
+  - `is_homed()` was rewritten to read `Status.IsHomed`, with a `not NeedsHoming` fallback for Kinesis builds that expose that instead (the installed version does not), and `False` if neither is reachable - so an unreadable status makes the caller home normally instead of skipping,
+  - added the same three-line guard to `thorlabs_LinearStage_BBD202.home()` **and** `home_with_guard()` (that method does not delegate to `home()`, it repeats the homing call, so both needed it), to `thorlabs_LinearStage.home()` and to `thorlabs_RotaryStage.home()`,
+  - in the BBD202 methods the guard is placed *after* `ensure_enabled()`, so the motor is still enabled on the skip path; only the homing travel is avoided,
+  - the homed flag lives in the controller firmware, not in the Python process, and none of the drivers' `close()` methods call `DisableDevice()` - they only `StopPolling()` and `Disconnect()`. So the flag survives closing and restarting the Python program, and is cleared by a controller power cycle or a limit/error condition, where the guard falls through and homes normally,
+  - this is a change to the shared `inst_libs/` drivers, so it affects every system. No main program was modified: they all call `home()` / `home_with_guard()` exactly as before,
+  - affected on this setup: Stage1 and Stage2 (BBD202, via `home_with_guard`) and Rotary1/2/3 (KDC101) - every motorised axis of this system,
+  - verified by extracting the patched methods with `ast` and running them against stubs: with `is_homed()` True, `Home()` is called 0 times and the skip message is printed; with False, `Home()` is called exactly once; the BBD202 enable guard runs in both branches. The rewritten `is_homed()` was then driven with four backing shapes per driver - a device with no `IsHomed` anywhere (the shape that crashed on hardware), `Status.IsHomed` True and False, and `NeedsHoming` - 12 checks, all returning the expected value with no exception,
+  - the skip path itself is still not confirmed on hardware: connect once, close the program, reconnect without power-cycling the controllers, and check that each axis prints `[Kinesis] Axis already homed, skipping homing move.` If the status object is not readable at that point the axis will simply home as before, which is the safe direction.
+
+### v2.9 - Rotation angles wrapped into the travel; travel limits exposed
+- Date: 2026-09-15
+- Main change: a rotation target outside the stage travel is now wrapped into one turn instead of being rejected by the controller mid-scan, and every stage driver can report its configured travel.
+- Details:
+  - symptom: a THz scan died on every point with `Cannot move to requested position` from `GenericMotorCLI.VerifyDeviceMovement`, at the planned point `(5.135, 110.0, 3.0, 367.0, 4.0)`. The offending value was Rotary2 at **367 deg** on a 360 deg stage,
+  - nothing in the chain validated angles: the UI spin boxes allow up to 1000 deg, `generate_position_sequence()` just accumulates `iRot + n*step` with no wrap, and `RotaryStage.move_to()` passed the value straight to `MoveTo()`. Only the Kinesis firmware refused it, with a .NET stack trace that does not name the axis,
+  - it also wasted the whole run: the rotation stages sit in the outer loop, so the bad angle stayed put while the inner axis kept stepping, and every point of that sweep was skipped. Rotary3 never moved either, because the exception aborts `move_active_stages()` before it,
+  - `thorlabs_RotaryStage`: the constructor now reads `AdvancedMotorLimits.LengthMinimum/LengthMaximum` into `min_pos` / `max_pos` (printed on connect). New `resolve_target()` maps a requested angle onto that travel - inside the travel it is returned unchanged; outside a full-turn travel it is wrapped (`lo + (target - lo) % span`) and the wrap is printed; on an axis whose travel is not a full turn there is nothing sensible to wrap to, so it raises `ValueError` naming the limits. `move_to()` now goes through it. Wrapping is lossless: 367 deg and 7 deg are the same optical configuration,
+  - `thorlabs_LinearStage_BBD202`, `thorlabs_LinearStage` and `physik_E861` gained a read-only `travel_limits()` so the scan code can treat every axis alike. The linear `move_to()` calls were deliberately NOT given a new guard: Kinesis already rejects an out-of-range target, and narrowing it here could refuse moves the controller would accept,
+  - known side effect of wrapping: crossing the seam (350 deg -> 370 deg) becomes an absolute move to 10 deg, so the stage turns the long way back rather than 20 deg forward. Harmless, once per revolution, and avoidable by planning the sweep inside 0..360,
+  - verified with the real `resolve_target()` against stub stages: on a 0..360 axis 7/360/350 pass through unchanged, 367 and 727 wrap to 7, -30 wraps to 330; with unreadable limits everything falls back to modulo 360; on a 0..180 axis 90 passes and 200 raises `ValueError` naming the range. Not yet exercised against real hardware.
+
+### v2.9 - Pre-scan travel check and per-axis movement errors
+- Date: 2026-09-15
+- Main change: ported the pre-scan travel check and the per-axis movement error message from THz emission v1.2, so a position that does not fit an axis stops the run before anything moves instead of failing mid-scan.
+- Details:
+  - the check was lifted verbatim from `THz_emission_system_iTC_v1.2.py` and inserted right after the polarization states are built, so the three copies cannot drift apart,
+  - for each active and connected axis it asks the driver for `travel_limits()`; for an axis that also offers `resolve_target()` (the rotaries) it asks the driver to resolve each planned target instead of comparing against the raw limits, so a wrappable angle such as 367 deg on a full-turn stage is not reported as an error,
+  - if anything is unreachable the scan stops before the first move and reports the axis, how many of the planned positions fail, the travel and the first few offending values; the HDF5 file is closed on that path like the other early-exit errors,
+  - an axis that is unticked, not connected, or whose controller reports no travel is skipped - the move itself still guards those,
+  - `move_active_stages()` now records which axis it is commanding, so a driver exception reads `Error moving Rotary2 to 367.0 deg: ...` instead of the anonymous `Error moving active stages: ...`. The five moves still share one `try`; only the message changed,
+  - all five axes of this system expose `travel_limits()` (Stage1/Stage2 through the BBD202 driver, Rotary1/2/3 through the KDC101 driver), so every one of them is covered,
+  - verified: the file parses, the check block matches the THz original, and all five axis labels are in place with the error line rewired. Not yet exercised against real hardware.
+
+### v2.9 - rotary3 panel synced with THz emission v1.2
+- Date: 2026-09-15
+- Main change: the whole `rotary3Group` panel was replaced with the one from THz emission v1.2, so the four systems now share an identical rotary3 / calibration panel.
+- Details:
+  - the earlier port only inserted the `Rot_stages_couple` button next to `pol_cali_mode`; the rest of the panel was still the older layout. Three differences remained: the `Cali. file` caption was still a separate `label_57` above the path box, the button row sat above the path box instead of below it, and `rotary3Step` with its `label_53` was still on the second row rather than beside `iRot3` on the first,
+  - the group's own container also differed - `QFormLayout formLayout_5` here against the `QVBoxLayout` pair THz was restructured to,
+  - fix: the single child `<layout>` of `rotary3Group` was replaced wholesale with the corresponding block from `THz_emission_system_iTC_v1.2.ui`. The group box's own properties (`sizePolicy`, `title`) were left untouched, and the panel only ever contained widget names shared by all four systems, so nothing system-specific was lost. `label_57` disappears with the old block,
+  - no object-name collisions in this file, so the incoming block was inserted unchanged,
+  - `.py`: added `self.ui.cali_file_path.setPlaceholderText("Cali. file")` so the caption now shows greyed-out inside the path box, the way the THz system does it. Placeholder text is not returned by `text()`, so an untouched box still counts as "no calibration file",
+  - verified by loading all four .ui through QUiLoader and comparing the `rotary3Group` widget tree (layout names excluded): the three ported panels are now structurally identical to THz v1.2, `label_57` is gone everywhere, every key widget (`Rot_stages_couple`, `pol_cali_mode`, `load_cali_file`, `cali_file_path`, `rotary3Step`, `rotary3StepNO`, `rot3CurrPos`, `iRot3`, `activeRot3`) resolves, the coupling button reads `Independent` with the coupling tooltip, and the calibration box shows the `Cali. file` placeholder while `text()` stays empty. Not yet exercised against real hardware.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 

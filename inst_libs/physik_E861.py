@@ -94,6 +94,10 @@ class LinearStage:
         self.ensure_enabled(timeout_ms=enable_timeout_ms)
         self.home(timeout_ms)
 
+    def travel_limits(self) -> tuple[float, float]:
+        """Return (min, max) travel in mm, as reported by the controller on connect."""
+        return self.min_pos, self.max_pos
+
     def get_velocity(self) -> tuple[float, float]:
         """Return (velocity_mm_s, acceleration_mm_s2)."""
         with self._lock:

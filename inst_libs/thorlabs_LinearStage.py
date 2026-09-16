@@ -86,6 +86,12 @@ class LinearStage:
     # ---------- Basic operations ----------
     def home(self, timeout_ms: int = 60000):
         """Home the stage (official example uses 60s timeout)."""
+        # The controller keeps the homed flag while it stays powered, so a reconnect after the
+        # Python side was closed does not need the full homing move again. It is cleared by a
+        # power cycle or a limit/error condition, in which case this falls through and homes.
+        if self.is_homed():
+            print("[Kinesis] Axis already homed, skipping homing move.")
+            return
         print("[Kinesis] Homing...")
         self._chan.Home(timeout_ms)
         print("[Kinesis] Homed.")
@@ -97,6 +103,20 @@ class LinearStage:
     def set_homing_params(self, params):
         """Set homing params if you edited them."""
         self._chan.SetHomingParams(params)
+
+    def travel_limits(self) -> tuple[float | None, float | None]:
+        """Return (min, max) travel in mm as configured in the controller.
+
+        Read-only: it is used to check planned scan positions before a run starts. The move call
+        itself is left alone - Kinesis already rejects an out-of-range target, and narrowing that
+        here could refuse moves the controller would accept.
+        """
+        try:
+            limits = self._chan.AdvancedMotorLimits
+            return float(str(limits.LengthMinimum)), float(str(limits.LengthMaximum))
+        except Exception as exc:
+            print(f"[Kinesis] Warning: travel limits unreadable ({exc}).")
+            return None, None
 
     def get_velocity(self) -> tuple[float, float]:
         """Return (MaxVelocity_mm_s, Acceleration_mm_s2)."""
@@ -130,7 +150,21 @@ class LinearStage:
         return float(str(self._chan.Position))
 
     def is_homed(self) -> bool:
-        return bool(self._chan.IsHomed)
+        """True when the controller reports the axis as homed.
+
+        Kinesis keeps this on the status object (`Status.IsHomed`), not on the device itself;
+        some builds instead expose a `NeedsHoming` flag. Anything unexpected is reported as
+        "not homed" so the caller performs the homing move rather than skipping it.
+        """
+        try:
+            return bool(self._chan.Status.IsHomed)
+        except Exception:
+            pass
+        try:
+            return not bool(self._chan.NeedsHoming)
+        except Exception:
+            pass
+        return False
 
     def close(self):
         """Stop polling and disconnect."""

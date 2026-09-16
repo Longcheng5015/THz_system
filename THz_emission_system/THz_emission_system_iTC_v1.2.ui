@@ -2743,6 +2743,9 @@ QProgressBar::chunk {
                        <property name="buttonSymbols">
                         <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                        </property>
+                       <property name="maximum">
+                        <double>1000.000000000000000</double>
+                       </property>
                        <property name="value">
                         <double>3.000000000000000</double>
                        </property>
@@ -3376,6 +3379,9 @@ QProgressBar::chunk {
                        <property name="decimals">
                         <number>3</number>
                        </property>
+                       <property name="maximum">
+                        <double>1000.000000000000000</double>
+                       </property>
                        <property name="value">
                         <double>4.000000000000000</double>
                        </property>
@@ -3994,6 +4000,9 @@ QProgressBar::chunk {
                        </property>
                        <property name="decimals">
                         <number>3</number>
+                       </property>
+                       <property name="maximum">
+                        <double>1000.000000000000000</double>
                        </property>
                        <property name="value">
                         <double>4.000000000000000</double>

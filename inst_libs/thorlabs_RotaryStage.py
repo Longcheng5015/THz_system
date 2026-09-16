@@ -67,9 +67,25 @@ class RotaryStage:
             if not self._device.IsSettingsInitialized():
                 raise RuntimeError("Device settings failed to initialize.")
 
+        # 7) Travel limits as configured in the controller, used to wrap/validate targets.
+        try:
+            limits = self._device.AdvancedMotorLimits
+            self.min_pos = float(str(limits.LengthMinimum))
+            self.max_pos = float(str(limits.LengthMaximum))
+            print(f"[Kinesis] Travel {self.min_pos} .. {self.max_pos} deg")
+        except Exception as exc:
+            self.min_pos = self.max_pos = None
+            print(f"[Kinesis] Warning: travel limits unreadable ({exc}); targets wrapped modulo 360.")
+
     # ---------- Basic operations ----------
     def home(self, timeout_ms: int = 60000):
         """Home the stage (blocking until done or timeout)."""
+        # The controller keeps the homed flag while it stays powered, so a reconnect after the
+        # Python side was closed does not need the full homing move again. It is cleared by a
+        # power cycle or a limit/error condition, in which case this falls through and homes.
+        if self.is_homed():
+            print("[Kinesis] Axis already homed, skipping homing move.")
+            return
         print("[Kinesis] Homing...")
         self._device.Home(timeout_ms)
         print("[Kinesis] Homed.")
@@ -94,9 +110,39 @@ class RotaryStage:
         vp.Acceleration = Decimal(float(acc_mm_s2))
         self._device.SetVelocityParams(vp)
 
+    def travel_limits(self) -> tuple[float | None, float | None]:
+        """Return (min, max) travel in degrees, or (None, None) if the controller did not report it."""
+        return self.min_pos, self.max_pos
+
+    def resolve_target(self, pos_deg: float) -> float:
+        """Map a requested angle onto the axis travel.
+
+        A rotation stage is circular, so 367 deg and 7 deg are the same optical configuration -
+        but Kinesis rejects anything outside the configured travel with a bare
+        "Cannot move to requested position". Targets outside a full-turn travel are therefore
+        wrapped into it; on an axis whose travel is not a full turn there is nothing sensible to
+        wrap to, so the target is rejected here with a message that names the limits.
+        """
+        target = float(pos_deg)
+        lo, hi = self.min_pos, self.max_pos
+        if lo is None or hi is None:
+            wrapped = target % 360.0
+        else:
+            if lo <= target <= hi:
+                return target
+            span = hi - lo
+            if abs(span - 360.0) > 1e-6:
+                raise ValueError(
+                    f"Target {target} deg is outside the travel range {lo} .. {hi} deg."
+                )
+            wrapped = lo + (target - lo) % span
+        if wrapped != target:
+            print(f"[Kinesis] {target} deg wrapped to {wrapped} deg (full-turn axis).")
+        return wrapped
+
     def move_to(self, pos_mm: float, timeout_ms: int = 60000):
         """Absolute move to pos_mm (Decimal for real units)."""
-        self._device.MoveTo(Decimal(float(pos_mm)), timeout_ms)
+        self._device.MoveTo(Decimal(self.resolve_target(pos_mm)), timeout_ms)
 
     def move_by(self, delta_mm: float, timeout_ms: int = 60000):
         """Relative move by delta_mm (supports direction + timeout overload)."""
@@ -114,7 +160,21 @@ class RotaryStage:
         return float(str(self._device.Position))
 
     def is_homed(self) -> bool:
-        return bool(self._device.IsHomed)
+        """True when the controller reports the axis as homed.
+
+        Kinesis keeps this on the status object (`Status.IsHomed`), not on the device itself;
+        some builds instead expose a `NeedsHoming` flag. Anything unexpected is reported as
+        "not homed" so the caller performs the homing move rather than skipping it.
+        """
+        try:
+            return bool(self._device.Status.IsHomed)
+        except Exception:
+            pass
+        try:
+            return not bool(self._device.NeedsHoming)
+        except Exception:
+            pass
+        return False
 
     def close(self):
         """Stop polling and disconnect."""
