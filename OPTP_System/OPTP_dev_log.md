@@ -403,6 +403,14 @@ This document records the overall development and debugging history for the OPTP
   - the check is kept as a regression test: `OPTP_System/tests/test_scanlog.py` (headless, no hardware, writes to a temp folder; run `python OPTP_System/tests/test_scanlog.py`, exit code 0 = all pass). It execs the v3.1 source, so it must be pointed at the new file when the version is bumped,
   - confirmed with the user: one log file per day (`ScanLog_<date>.txt` in that day's data folder, appended by every scan of the day), and one peak-tracking summary line per data file instead of one line per sweep.
 
+### v3.1 - v2.9 and v3.0 archived into `old_version/`
+- Date: 2026-09-26
+- Main change: moved `OPTP_system_iTC_v2.9.py` / `OPTP_iTC_main_v2.9.ui` and `OPTP_system_iTC_v3.0.py` / `OPTP_iTC_main_v3.0.ui` into `OPTP_System/old_version/`, so only the current v3.1 pair sits at the top level.
+- Details:
+  - v2.9 was tracked and moved with `git mv` (history preserved); v3.0 had never been committed and was moved with a plain `mv`,
+  - each archived `.py` still finds its `.ui` through `os.path.dirname(os.path.abspath(__file__))`. As with the earlier archived versions, `proj_tools.py` stays at the top level, so an archived version cannot be run directly from `old_version/` without it,
+  - no code outside `old_version/` referenced the moved files; `tests/test_scanlog.py` targets v3.1 only.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 
