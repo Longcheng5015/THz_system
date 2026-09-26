@@ -1,0 +1,5 @@
+# Store text files with LF in the repo; each machine checks out its native EOL.
+* text=auto
+# Binary assets: never touch.
+*.png binary
+*.ico binary
