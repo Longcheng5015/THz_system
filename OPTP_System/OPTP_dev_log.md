@@ -411,6 +411,14 @@ This document records the overall development and debugging history for the OPTP
   - each archived `.py` still finds its `.ui` through `os.path.dirname(os.path.abspath(__file__))`. As with the earlier archived versions, `proj_tools.py` stays at the top level, so an archived version cannot be run directly from `old_version/` without it,
   - no code outside `old_version/` referenced the moved files; `tests/test_scanlog.py` targets v3.1 only.
 
+### v3.1 - v3.0/v3.1 features synced into MO, OPTP image and THz emission
+- Date: 2026-09-26
+- Main change: MO v2.4, OPTP image v1.4 and THz emission v1.3 were created with this system's v3.0/v3.1 layout, flip mount / AutoBlock, Inst. Config. panel and ScanLog, so the four systems share widget names again. Details in each system's dev log.
+- Details:
+  - each new .ui is built from `OPTP_iTC_main_v3.1.ui` with the system's own values (title, stage ranges, defaults, connection addresses) re-applied; each .py is this system's v3.0/v3.1 change set merged in, with every system's instruments, addresses, scan modes and stage order kept,
+  - each system saves its connection settings under its own QSettings name (`MO_System`, `OPTP_image_System`, `THz_emission_system`),
+  - regression test for all three: `OPTP_System/tests/test_system_sync.py <mo|img|thz>` (headless, stand-in instruments, temp ini file instead of the registry). Run it with the `opto_test` conda env, the environment the systems run in: MO 28/28, OPTP image 26/26, THz 26/26 (real pipython), and `tests/test_scanlog.py` 17/17.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 

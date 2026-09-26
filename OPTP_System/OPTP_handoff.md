@@ -92,6 +92,12 @@ They are not suspected broken; they have simply never been run for real.
   mid-measurement - the mount must end up blocked both times.
 - [ ] **v3.1 ScanLog** - on the lab PC run one real scan (ideally a 2-point temperature scan) and
   check `ScanLog_<date>.txt` appears in the day's data folder with the conditions and events.
+- [ ] **Synced systems (MO v2.4, OPTP image v1.4, THz v1.3)** - built and tested headless only. On
+  each setup: connect with the panel defaults (must behave like the previous version); confirm the
+  flip mount serial - all three default to the OPTP mount `37872830`; run one AutoBlock temperature
+  scan and check the beam and `ScanLog_<date>.txt`. Run with the conda env `opto_test` (it has
+  pipython for THz; the system Python 3.13 does not). MO: the pass happens before its per-temperature Stage2
+  peak calibration - confirm the peak search sees the beam.
 - [ ] **v3.1 Instrument Connections tab** - on the lab PC: press Scan devices and check the VISA
   and Kinesis lists show the real instruments; connect everything with the defaults (must behave
   exactly like v3.0); restart and confirm the values come back. Rotary serials were verified by the

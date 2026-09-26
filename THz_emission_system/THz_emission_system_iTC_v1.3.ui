@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='UTF-8'?>
+<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>MainWindow</class>
  <widget class="QMainWindow" name="MainWindow">
@@ -23,24 +23,24 @@
    <string>MainWindow</string>
   </property>
   <property name="styleSheet">
-   <string notr="true">*[mytype="container"] {
+   <string notr="true">*[mytype=&quot;container&quot;] {
     border: 1px solid #000;
 	border-color: rgb(0, 0, 0);
     border-radius: 4px;
 }
 
-*[mytype="splitline"] {
+*[mytype=&quot;splitline&quot;] {
     border-top: 1px solid black;
 }
 
-*[mytype="inst_disp"]{
+*[mytype=&quot;inst_disp&quot;]{
     background-color: black;
     color: red;
     font-weight: bold;
 }
 
 /* set chart broader */
-/**[mytype="chart"] {       
+/**[mytype=&quot;chart&quot;] {       
     border: 1px solid #000;
 	border-color: rgb(0, 0, 0);
     border-radius: 4px;
@@ -58,18 +58,18 @@ QProgressBar::chunk {
     background-color: #FFB300;   /* Golden*/
 }
 
-*[mytype="led"] {
+*[mytype=&quot;led&quot;] {
     border: 1px solid #000;
 	border-color: rgb(0, 0, 0);
     border-radius: 4px;
 }
 
-*[mytype="line"] {
+*[mytype=&quot;line&quot;] {
     border: 0px;
     border-top: 1px solid #C8C8C8;   /* 水平线：用 top 边 */
 }
 
-/**[mytype="arrowbutton"] {
+/**[mytype=&quot;arrowbutton&quot;] {
     border: 1px solid #000;
 	border-color: rgb(0, 0, 0);
     border-radius: 0px;
@@ -605,7 +605,7 @@ QProgressBar::chunk {
                         <string>Active Instrument?</string>
                        </property>
                        <property name="text">
-                        <string />
+                        <string/>
                        </property>
                        <property name="checked">
                         <bool>false</bool>
@@ -900,7 +900,7 @@ QProgressBar::chunk {
                           </size>
                          </property>
                          <property name="text">
-                          <string />
+                          <string/>
                          </property>
                          <property name="checked">
                           <bool>false</bool>
@@ -1142,7 +1142,7 @@ QProgressBar::chunk {
                      <item>
                       <widget class="QSpinBox" name="WaitSamStable">
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Wait T stable (min.):&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Additional wait time for the sample temperature to stabilize, preventing thermal expansion or contraction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Wait T stable (min.):&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Additional wait time for the sample temperature to stabilize, preventing thermal expansion or contraction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <property name="buttonSymbols">
                         <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
@@ -1188,7 +1188,7 @@ QProgressBar::chunk {
                    <item>
                     <widget class="Line" name="line">
                      <property name="styleSheet">
-                      <string notr="true" />
+                      <string notr="true"/>
                      </property>
                      <property name="orientation">
                       <enum>Qt::Orientation::Horizontal</enum>
@@ -1260,7 +1260,7 @@ QProgressBar::chunk {
                </sizepolicy>
               </property>
               <property name="styleSheet">
-               <string notr="true" />
+               <string notr="true"/>
               </property>
               <property name="mytype" stdset="0">
                <string>chart</string>
@@ -1276,7 +1276,7 @@ QProgressBar::chunk {
                </sizepolicy>
               </property>
               <property name="styleSheet">
-               <string notr="true" />
+               <string notr="true"/>
               </property>
               <property name="mytype" stdset="0">
                <string>chart</string>
@@ -1611,7 +1611,7 @@ QTabBar::tab:selected {
                           <string>Active Instrument?</string>
                          </property>
                          <property name="text">
-                          <string />
+                          <string/>
                          </property>
                          <property name="checked">
                           <bool>false</bool>
@@ -1995,7 +1995,7 @@ QTabBar::tab:selected {
                           <string>Active Instrument?</string>
                          </property>
                          <property name="text">
-                          <string />
+                          <string/>
                          </property>
                          <property name="checked">
                           <bool>false</bool>
@@ -2139,7 +2139,7 @@ QTabBar::tab:selected {
                         </font>
                        </property>
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Manual block / pass (for alignment and testing)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Press to block the beam, press again to let it pass. The text shows the current state: Blocked or Pass.&lt;/p&gt;&lt;p&gt;Which position is pass follows the CH1/CH2 box. Disabled during a scan, when Auto block is in charge.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Manual block / pass (for alignment and testing)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Press to block the beam, press again to let it pass. The text shows the current state: Blocked or Pass.&lt;/p&gt;&lt;p&gt;Which position is pass follows the CH1/CH2 box. Disabled during a scan, when Auto block is in charge.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <property name="text">
                         <string>Block / Pass</string>
@@ -2181,7 +2181,7 @@ QTabBar::tab:selected {
                         </font>
                        </property>
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Auto block (protects the sample during temperature changes)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;When pressed, during a scan the flip mount blocks the beam while the temperature is changing and settling, lets it pass right before the measurement at each temperature point, and blocks it again when the scan finishes, is stopped or fails.&lt;/p&gt;&lt;p&gt;A scan will not start with Auto block on while the flip mount is not connected.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Auto block (protects the sample during temperature changes)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;When pressed, during a scan the flip mount blocks the beam while the temperature is changing and settling, lets it pass right before the measurement at each temperature point, and blocks it again when the scan finishes, is stopped or fails.&lt;/p&gt;&lt;p&gt;A scan will not start with Auto block on while the flip mount is not connected.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <property name="text">
                         <string>AutoBlock</string>
@@ -2209,7 +2209,7 @@ QTabBar::tab:selected {
                         <string>Active Instrument?</string>
                        </property>
                        <property name="text">
-                        <string />
+                        <string/>
                        </property>
                        <property name="checked">
                         <bool>false</bool>
@@ -2246,7 +2246,7 @@ QTabBar::tab:selected {
                         </size>
                        </property>
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Flip mount connection&lt;/span&gt;&lt;/p&gt;&lt;p&gt;On: the flip mount is connected.&lt;/p&gt;&lt;p&gt;Off: not connected. Tick the box on the left and press Conn. Instr. to connect.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Flip mount connection&lt;/span&gt;&lt;/p&gt;&lt;p&gt;On: the flip mount is connected.&lt;/p&gt;&lt;p&gt;Off: not connected. Tick the box on the left and press Conn. Instr. to connect.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <property name="mytype" stdset="0">
                         <string>led</string>
@@ -2280,7 +2280,7 @@ QTabBar::tab:selected {
                         </size>
                        </property>
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Beam state&lt;/span&gt;&lt;/p&gt;&lt;p&gt;On: the beam PASSES to the sample.&lt;/p&gt;&lt;p&gt;Off: the beam is BLOCKED, or the flip mount is not connected.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Beam state&lt;/span&gt;&lt;/p&gt;&lt;p&gt;On: the beam PASSES to the sample.&lt;/p&gt;&lt;p&gt;Off: the beam is BLOCKED, or the flip mount is not connected.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <property name="mytype" stdset="0">
                         <string>led</string>
@@ -2314,7 +2314,7 @@ QTabBar::tab:selected {
                         </size>
                        </property>
                        <property name="toolTip">
-                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Pass channel&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Which flip-mount position lets the beam reach the sample. The other position blocks it.&lt;/p&gt;&lt;p&gt;Changing this only updates the beam-state light and the manual button; it does not move the mount.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Pass channel&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Which flip-mount position lets the beam reach the sample. The other position blocks it.&lt;/p&gt;&lt;p&gt;Changing this only updates the beam-state light and the manual button; it does not move the mount.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
                        <item>
                         <property name="text">
@@ -2368,7 +2368,7 @@ QTabBar::tab:selected {
                         <string>Active Instrument?</string>
                        </property>
                        <property name="text">
-                        <string />
+                        <string/>
                        </property>
                        <property name="checked">
                         <bool>false</bool>
@@ -2507,7 +2507,7 @@ QTabBar::tab:selected {
                             <string>Active Instrument?</string>
                            </property>
                            <property name="text">
-                            <string />
+                            <string/>
                            </property>
                            <property name="checked">
                             <bool>false</bool>
@@ -2606,16 +2606,16 @@ QTabBar::tab:selected {
                            <property name="decimals">
                             <number>3</number>
                            </property>
+                           <property name="minimum">
+                            <double>-26.000000000000000</double>
+                           </property>
                            <property name="maximum">
-                      <double>26.000000000000000</double>
-                     </property>
-                     <property name="value">
-                      <double>0.000000000000000</double>
-                     </property>
-                    <property name="minimum">
-                      <double>-26.000000000000000</double>
-                     </property>
-                     </widget>
+                            <double>26.000000000000000</double>
+                           </property>
+                           <property name="value">
+                            <double>0.000000000000000</double>
+                           </property>
+                          </widget>
                          </item>
                         </layout>
                        </item>
@@ -2697,12 +2697,12 @@ QTabBar::tab:selected {
                                <number>3</number>
                               </property>
                               <property name="minimum">
-                         <double>-26.000000000000000</double>
-                        </property>
-                        <property name="maximum">
-                         <double>26.000000000000000</double>
-                        </property>
-                        <property name="value">
+                               <double>-26.000000000000000</double>
+                              </property>
+                              <property name="maximum">
+                               <double>26.000000000000000</double>
+                              </property>
+                              <property name="value">
                                <double>0.001000000000000</double>
                               </property>
                              </widget>
@@ -2769,12 +2769,12 @@ QTabBar::tab:selected {
                                <number>3</number>
                               </property>
                               <property name="minimum">
-                         <double>-26.000000000000000</double>
-                        </property>
-                        <property name="maximum">
-                         <double>26.000000000000000</double>
-                        </property>
-                       </widget>
+                               <double>-26.000000000000000</double>
+                              </property>
+                              <property name="maximum">
+                               <double>26.000000000000000</double>
+                              </property>
+                             </widget>
                             </item>
                             <item>
                              <widget class="QPushButton" name="stage1MoveTo">
@@ -3360,12 +3360,12 @@ QTabBar::tab:selected {
                             <number>3</number>
                            </property>
                            <property name="minimum">
-                      <double>-26.000000000000000</double>
-                     </property>
-                     <property name="maximum">
-                      <double>26.000000000000000</double>
-                     </property>
-                    </widget>
+                            <double>-26.000000000000000</double>
+                           </property>
+                           <property name="maximum">
+                            <double>26.000000000000000</double>
+                           </property>
+                          </widget>
                          </item>
                         </layout>
                        </item>
@@ -3430,7 +3430,7 @@ QTabBar::tab:selected {
                             <string>Active Instrument?</string>
                            </property>
                            <property name="text">
-                            <string />
+                            <string/>
                            </property>
                            <property name="checked">
                             <bool>false</bool>
@@ -4366,7 +4366,7 @@ QTabBar::tab:selected {
                             <string>Active Instrument?</string>
                            </property>
                            <property name="text">
-                            <string />
+                            <string/>
                            </property>
                            <property name="checked">
                             <bool>false</bool>
@@ -4459,13 +4459,13 @@ QTabBar::tab:selected {
                            <property name="buttonSymbols">
                             <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                            </property>
+                           <property name="maximum">
+                            <double>1000.000000000000000</double>
+                           </property>
                            <property name="value">
                             <double>3.000000000000000</double>
                            </property>
-                          <property name="maximum">
-                        <double>1000.000000000000000</double>
-                       </property>
-                       </widget>
+                          </widget>
                          </item>
                         </layout>
                        </item>
@@ -5002,7 +5002,7 @@ QTabBar::tab:selected {
                             <string>Active Instrument?</string>
                            </property>
                            <property name="text">
-                            <string />
+                            <string/>
                            </property>
                            <property name="checked">
                             <bool>false</bool>
@@ -5098,13 +5098,13 @@ QTabBar::tab:selected {
                            <property name="decimals">
                             <number>3</number>
                            </property>
+                           <property name="maximum">
+                            <double>1000.000000000000000</double>
+                           </property>
                            <property name="value">
                             <double>4.000000000000000</double>
                            </property>
-                          <property name="maximum">
-                        <double>1000.000000000000000</double>
-                       </property>
-                       </widget>
+                          </widget>
                          </item>
                         </layout>
                        </item>
@@ -5624,7 +5624,7 @@ QTabBar::tab:selected {
                             <string>Active Instrument?</string>
                            </property>
                            <property name="text">
-                            <string />
+                            <string/>
                            </property>
                            <property name="checked">
                             <bool>false</bool>
@@ -6151,7 +6151,7 @@ QTabBar::tab:selected {
                             </font>
                            </property>
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Rotation stage coupling:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'Independent'&lt;/span&gt;: each rotation stage follows its own angle sequence; a stage whose step number is 1 stays at its initial angle and never moves;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'Coupled'&lt;/span&gt;: Rotary1, Rotary2 and Rotary3 step together, one angle each per polarization point, so all three must be given the same number of steps;&lt;/p&gt;&lt;p&gt;Importing a calibration file forces coupled for that scan, whatever this button shows.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Rotation stage coupling:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Independent'&lt;/span&gt;: each rotation stage follows its own angle sequence; a stage whose step number is 1 stays at its initial angle and never moves;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Coupled'&lt;/span&gt;: Rotary1, Rotary2 and Rotary3 step together, one angle each per polarization point, so all three must be given the same number of steps;&lt;/p&gt;&lt;p&gt;Importing a calibration file forces coupled for that scan, whatever this button shows.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                            </property>
                            <property name="text">
                             <string>Independent</string>
@@ -6187,7 +6187,7 @@ QTabBar::tab:selected {
                             </font>
                            </property>
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Choose calibration method for polarization dependent measurement:&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'Auto Cali.'&lt;/span&gt;:  automatically calibrate polarization dependence by setting synchronization correction angle_steps;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt; 'Manu. Cali.'&lt;/span&gt;:  import calibration data obtained from manually calibration  &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Choose calibration method for polarization dependent measurement:&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Auto Cali.'&lt;/span&gt;:  automatically calibrate polarization dependence by setting synchronization correction angle_steps;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt; 'Manu. Cali.'&lt;/span&gt;:  import calibration data obtained from manually calibration  &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                            </property>
                            <property name="text">
                             <string>Auto Cali.</string>
@@ -6317,9 +6317,9 @@ QTabBar::tab:selected {
                           </size>
                          </property>
                          <property name="toolTip">
-                      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Scan modes:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'THz_Scan'&lt;/span&gt;: time-domain scan; loop order rotation stages (outermost) -&gt; stage2 -&gt; stage1 (swept innermost);&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'2D_THz'&lt;/span&gt;: one full time-domain trace at each optical pump delay; same loop order as 'THz_Scan';&lt;/p&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;'THz_pol'&lt;/span&gt;: polarization dependent scan; loop order stage2 (outermost) -&gt; stage1 -&gt; rotation stages (innermost);&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                     </property>
-                    </widget>
+                          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan modes:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'THz_Scan'&lt;/span&gt;: time-domain scan; loop order rotation stages (outermost) -&gt; stage2 -&gt; stage1 (swept innermost);&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'2D_THz'&lt;/span&gt;: one full time-domain trace at each optical pump delay; same loop order as 'THz_Scan';&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'THz_pol'&lt;/span&gt;: polarization dependent scan; loop order stage2 (outermost) -&gt; stage1 -&gt; rotation stages (innermost);&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                         </property>
+                        </widget>
                        </item>
                       </layout>
                      </item>
@@ -6813,7 +6813,7 @@ QTabBar::tab:selected {
                   </sizepolicy>
                  </property>
                  <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Scan devices&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Lists the VISA resources (GPIB / serial / USB) and the Thorlabs Kinesis serial numbers currently visible to this PC, and offers them in the drop-down lists. The values already entered are kept.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan devices&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Lists the VISA resources (GPIB / serial / USB) and the Thorlabs Kinesis serial numbers currently visible to this PC, and offers them in the drop-down lists. The values already entered are kept.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                  </property>
                  <property name="text">
                   <string>Scan devices</string>
@@ -6919,7 +6919,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>GPIB0::3::INSTR</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>GPIB0::3::INSTR</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="3" column="0">
                 <widget class="QLabel" name="connLabel_Lockin2">
@@ -6957,7 +6962,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>GPIB0::6::INSTR</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>GPIB0::6::INSTR</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="4" column="0">
                 <widget class="QLabel" name="connLabel_Stage1">
@@ -6995,7 +7005,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>0119001337</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>0119001337</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="4" column="2">
                 <widget class="QSpinBox" name="Stage1_ch">
@@ -7055,7 +7070,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>73844983</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>73844983</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="5" column="2">
                 <widget class="QSpinBox" name="Stage2_ch">
@@ -7115,7 +7135,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>27004364</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>27004364</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="7" column="0">
                 <widget class="QLabel" name="connLabel_Rot2">
@@ -7153,7 +7178,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>27005114</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>27005114</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="8" column="0">
                 <widget class="QLabel" name="connLabel_Rot3">
@@ -7191,7 +7221,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>27255894</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>27255894</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="9" column="0">
                 <widget class="QLabel" name="connLabel_FM">
@@ -7229,7 +7264,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>37872830</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>37872830</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="10" column="0">
                 <widget class="QLabel" name="connLabel_iTC">
@@ -7267,7 +7307,12 @@ QTabBar::tab:selected {
                  <property name="editable">
                   <bool>true</bool>
                  </property>
-                 <item><property name="text"><string>ASRL11::INSTR</string></property></item></widget>
+                 <item>
+                  <property name="text">
+                   <string>ASRL11::INSTR</string>
+                  </property>
+                 </item>
+                </widget>
                </item>
                <item row="11" column="0">
                 <widget class="QLabel" name="connLabel_PM">
@@ -7325,7 +7370,7 @@ QTabBar::tab:selected {
                   </font>
                  </property>
                  <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Scan log&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Test conditions of each scan and its key events (temperature points, data files, peak tracking, how the scan ended), shown live.&lt;/p&gt;&lt;p&gt;Every line is also appended to ScanLog_YYYY-MM-DD.txt in the data save folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan log&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Test conditions of each scan and its key events (temperature points, data files, peak tracking, how the scan ended), shown live.&lt;/p&gt;&lt;p&gt;Every line is also appended to ScanLog_YYYY-MM-DD.txt in the data save folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                  </property>
                  <property name="readOnly">
                   <bool>true</bool>
@@ -7358,7 +7403,7 @@ QTabBar::tab:selected {
     </item>
    </layout>
   </widget>
-  <widget class="QStatusBar" name="statusbar" />
+  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <customwidgets>
   <customwidget>
@@ -7374,6 +7419,6 @@ QTabBar::tab:selected {
    <container>1</container>
   </customwidget>
  </customwidgets>
- <resources />
- <connections />
+ <resources/>
+ <connections/>
 </ui>
