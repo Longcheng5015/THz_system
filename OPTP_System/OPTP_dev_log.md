@@ -321,6 +321,88 @@ This document records the overall development and debugging history for the OPTP
   - `.py`: added `self.ui.cali_file_path.setPlaceholderText("Cali. file")` so the caption now shows greyed-out inside the path box, the way the THz system does it. Placeholder text is not returned by `text()`, so an untouched box still counts as "no calibration file",
   - verified by loading all four .ui through QUiLoader and comparing the `rotary3Group` widget tree (layout names excluded): the three ported panels are now structurally identical to THz v1.2, `label_57` is gone everywhere, every key widget (`Rot_stages_couple`, `pol_cali_mode`, `load_cali_file`, `cali_file_path`, `rotary3Step`, `rotary3StepNO`, `rot3CurrPos`, `iRot3`, `activeRot3`) resolves, the coupling button reads `Independent` with the coupling tooltip, and the calibration box shows the `Cali. file` placeholder while `text()` stays empty. Not yet exercised against real hardware.
 
+### v2.9 - Superseded versions archived into `old_version/`
+- Date: 2026-09-23
+- Main change: moved the v2.6, v2.7 and v2.8 code and UI files out of `OPTP_System/` into `OPTP_System/old_version/`, so only the current v2.9 pair sits at the top level.
+- Details:
+  - moved with `git mv` (history preserved): `OPTP_system_iTC_v2.6/2.7/2.8.py` and `OPTP_iTC_main_v2.6/2.7/2.8.ui`,
+  - this continues the existing convention - `old_version/` already held everything up to v2.5,
+  - each version's `.py` resolves its `.ui` through `os.path.dirname(os.path.abspath(__file__))`, so the pairs still load correctly from their new location; no path edits were needed,
+  - nothing outside the dev logs and `OPTP_handoff.md` referenced the moved files, so no imports or configs were touched. The mentions in `OPTP_handoff.md` and `THz_emission_dev_log.md` are historical prose and were left as they are,
+  - `OPTP_System/` now contains only `OPTP_system_iTC_v2.9.py` + `OPTP_iTC_main_v2.9.ui` alongside the logs, icons and `proj_tools.py`.
+
+### v3.0 - Stage1/Stage2 step-row spinboxes aligned
+- Date: 2026-09-26
+- Main change: the three spinboxes of the `Step(um)` row and the `Step NO.` row in `stage1Group` / `stage2Group` now line up vertically.
+- Details:
+  - cause: each row is its own grid (`gridLayout_7` / `gridLayout_8` in Stage1, `gridLayout_6` / `gridLayout_10` in Stage2), so columns are not shared between the rows. Every column was sized from its widget's sizeHint, and those differ - spinbox width follows the digit count of its range (46 px for -100..99, 53 px for 0..10000, 58 px for -10000..10000) and the two labels are 49 / 47 px - which put the rows 5-7 px out of line,
+  - fix (`OPTP_iTC_main_v3.0.ui` only): added `minimumSize` width 56 to `label_24`, `label_25`, `label_29`, `label_27`, and width 58 (the widest sizeHint) to `stage1Step1-3`, `stage1Step1NO-3NO`, `stage2Step1-3`, `stage2Step1NO-3NO`. No layout was restructured,
+  - verified by loading the .ui through QUiLoader at 1000x700 and 1800x1100: both rows now share identical x positions (Stage1 81 / 148 / 215, Stage2 528 / 595 / 662 at the larger size).
+
+### v3.0 - `OPTP_system_iTC_v3.0.py` created for the v3.0 UI
+- Date: 2026-09-26
+- Main change: `OPTP_system_iTC_v3.0.py` is a copy of `OPTP_system_iTC_v2.9.py` whose only change is the loaded UI file (`OPTP_iTC_main_v2.9.ui` -> `OPTP_iTC_main_v3.0.ui`, line 68).
+- Details:
+  - all 110 `self.ui.<name>` references in the code resolve in the v3.0 UI; the names that disappeared from the UI are layouts only, none referenced by code,
+  - the v3.0 UI adds a `tabWidget` (`Scan` / `Inst. Config. && Log`) and new, not yet wired widgets: `FlipMount` group (`activeFlipMount`, `FMLed`, `FM_Block`), `activePowerMeter` / `PMLed` / `PowerMeterDisp`, and `Lockin1_res`. No code drives them yet; `set_ControlsEnabledDuringScan` disables / re-enables them generically like every other input,
+  - verified by a headless (`QT_QPA_PLATFORM=offscreen`) construction of `moSys`: the UI loads, all charts initialise, and both tabs are present. Not yet run against hardware.
+
+### v3.0 - Flip mount (MFF) beam block with AutoBlock
+- Date: 2026-09-26
+- Main change: the Thorlabs MFF flip mount is now connectable, and with `AutoBlock` pressed it keeps the beam off temperature-sensitive samples while the temperature changes, opening only for the measurement.
+- Details:
+  - UI (`OPTP_iTC_main_v3.0.ui`): added the `fmPassCh` combobox (`Pass: CH1` / `Pass: CH2`) in the Flip Mount group, in place of `horizontalSpacer_2`, to choose which mount position lets the beam through (the other one blocks). Replaced the `AutoBlock` tooltip, which had been copied from `Rot_stages_couple`, with a description of what AutoBlock does,
+  - connect / close: `activeFlipMount` connects `FilterFlipper` (serial `37872830`, taken from `inst_libs/test_MFF0102.py`) through `connectInstruments()` and closes through `close_one()` like the other instruments. The mount is deliberately **not homed** on connect, because homing flips it and could expose the sample. `FM_connect` shows the connection, `FM_Indicate` shows the beam state (on = blocked),
+  - changing `fmPassCh` only re-reads the position to update `FM_Indicate`; it never moves the mount,
+  - scan flow with AutoBlock on, per temperature point: block -> go to T -> iTC stabilisation -> sample soak -> pass -> (peak tracking) -> measurement. A failed block only warns; a failed pass aborts the scan, since measuring with the beam blocked would produce a useless data set. Without a temperature scan it just passes before measuring,
+  - end of scan: `ScanThread.run()` calls `auto_block_after_scan()` on normal finish, on Stop, and on an exception, before `scan_finished` / `error_occurred` re-enable the controls,
+  - `check_instruments_ready()` now includes the flip mount, and refuses to start a scan when AutoBlock is on but no mount is connected, so the sample is never left unprotected silently,
+  - a move counts as done only when the read-back position equals the target; the LED is updated from the scan thread through the new `ScanThread.fm_block_led` signal,
+  - hover tooltips in one format (bold title + explanation) on `FM_connect`, `AutoBlock`, `fmManual`, `fmPassCh` and `FM_Indicate`, stating what each LED state means and what each control does. (The first version of these tooltips was lost to a Designer save of an older copy at 19:00 and was re-applied together with `fmManual`.)
+  - manual Block/Pass button `fmManual` (checkable, between `AutoBlock` and `fmPassCh`; grid `columnstretch` is now `1,1,3,3,4,1`) for alignment and testing outside a scan: pressed = block, released = pass, with the pass position taken from `fmPassCh`. Its text shows the current state (`Blocked` / `Pass`, or `Block / Pass` when not connected). `show_flipmount_state()` now drives both `FM_Indicate` and the button with signals blocked, so AutoBlock moves during a scan, remapping CH1/CH2 and connect/close all keep the button in step without triggering another move. Pressing it while disconnected, or a failed move, puts the button back to the real state. Like every input it is disabled during a scan,
+  - the power meter group (`activePowerMeter`, `PMLed`, `PowerMeterDisp`) is intentionally left without code for now,
+  - verified headless against a simulated mount (10/10 checks): scan refused with AutoBlock on and no mount, block/pass positions and LED for both CH1 and CH2 mappings, remapping does not move the mount, the scan-thread signal path, AutoBlock off leaves the mount alone after a scan, a failed move returns False without raising. The scan-loop insertion points and the real MFF are not yet exercised - tracked in `OPTP_handoff.md` P1.
+
+### v3.1 - Instrument connection parameters moved to the Inst. Config. tab
+- Date: 2026-09-26
+- Main change: `OPTP_system_iTC_v3.1.py` + `OPTP_iTC_main_v3.1.ui` (copied from v3.0). Every VISA address, Kinesis serial and stage channel that was hard-coded in `connectInstruments()` is now set in an **Instrument Connections** panel on tab 2, can be picked from a device scan or typed in, and is remembered between sessions.
+- Details:
+  - UI: tab 2's placeholder (`label_57` "Sensitivity" + `Lockin1_res`) replaced by the `connGroup` panel: one row per instrument with an editable combobox `<name>_res` - `Lockin1_res`, `Lockin2_res`, `Stage1_res`, `Stage2_res`, `Rot1_res`, `Rot2_res`, `Rot3_res`, `FM_res`, `iTC_res`, `PM_res` - plus `Stage1_ch` / `Stage2_ch` spinboxes, and a `scanDevices` button. Defaults are the values that were hard-coded, so connecting behaves exactly as before,
+  - rotary rows deliberately have no channel box: `RotaryStage(serial, ...)` is single-channel and never received the old `chan = 1/2`, which was only printed. The dead `chan` lines were removed from the three rotary blocks rather than wired to a control that would do nothing,
+  - `connectInstruments()` reads each address/serial with `currentText().strip()` and the stage channels with `value()`,
+  - `scan_devices()`: offers `InstrumentTools.list_visa_resources()` in the VISA boxes and the new `InstrumentTools.list_kinesis_serials()` in the Kinesis boxes; the entered values are kept, a failing scan only prints,
+  - `inst_libs/inst_tools.py`: added `list_kinesis_serials()` (`DeviceManagerCLI.BuildDeviceList/GetDeviceList`). pythonnet/Kinesis are imported inside the function, so importing `inst_tools` still works on a PC without Kinesis. Purely additive for the other systems using this module,
+  - persistence: `QSettings("OPTP_System", "InstrumentConnections")` (Windows registry, `HKCU\Software\OPTP_System`). Saved on every Conn. Instr., loaded at start-up; anything never saved falls back to the .ui default. Note: once saved, the stored value wins over a later change of the default in Designer,
+  - `PM_res` is stored but not used yet (power meter logic still deferred),
+  - fix: `check_instruments_ready()` counted a ticked flip mount as an "active instrument", so ticking only the flip mount got past the "no instrument is marked active at all" guard and ran an empty all-zero scan. The flip mount no longer counts towards `any_active` (it still must be connected when ticked). Introduced in v3.0 with the flip mount; fixed in v3.1 only,
+  - end-to-end scan simulation (8/8, fake lock-in + fake mount, real `runScan()` -> `ScanThread` path, data written to a temp folder): no flip mount + AutoBlock off runs normally; AutoBlock on without a mount is refused; a ticked but unconnected mount is refused like any instrument; a connected mount with AutoBlock off is never moved; AutoBlock on moves pass -> block and the LED/button end on Blocked; a mount that fails to open aborts before any data file is created and stays blocked; flip mount alone is refused; Stop mid-measurement ends blocked. The temperature branch (block before each ramp) needs the iTC and was checked by reading only,
+  - verified headless (9/9): .ui defaults on a clean start, edited values reach `SR830` / `LinearStage` (serial + channel) / `RotaryStage` / `FilterFlipper` / `MercuryiTC` (captured with stand-in classes), scan fills both lists without overwriting typed values, a failing scan is caught, and a new window restores the saved values. Tests used a temporary ini file, the real registry was not touched. Not yet run on the lab PC.
+
+### v3.1 - Flip mount beam-state LED inverted (lit = pass)
+- Date: 2026-09-26
+- Main change: `FM_Indicate` now lights when the beam passes to the sample and is off when it is blocked, the reverse of v3.0.
+- Details:
+  - requested after the first real MFF connection: the lab expects the LED to mean "beam on sample",
+  - the only place that writes the LED is `show_flipmount_state()`; it now sets `status = blocked is False`, so blocked (`True`) and unknown / not connected (`None`) are both off, and only a confirmed pass is lit. The scan-thread `fm_block_led` signal still carries "blocked" and was left unchanged,
+  - the `fmManual` button (pressed = block, text `Blocked` / `Pass`) is unchanged,
+  - `FM_Indicate` tooltip in `OPTP_iTC_main_v3.1.ui` and the init comment in the .py were updated to the new meaning,
+  - verified: `py_compile` passes; mapping True -> off, False -> on, None -> off; the .ui is still CRLF throughout. Not yet checked on the real mount.
+
+### v3.1 - ScanLog: live scan-condition log, appended to a per-day file
+- Date: 2026-09-26
+- Main change: a `ScanLog` group box to the right of Instrument Connections on tab 2 shows each scan's test conditions and key events as they happen, and every line is appended at once to `ScanLog_YYYY-MM-DD.txt` in the data save folder.
+- Details:
+  - UI (`OPTP_iTC_main_v3.1.ui`): the `connHSpacer` at `tab2Layout` (0,1) was replaced by `QGroupBox ScanLog` (rowspan 2, so it fills the tab's stretching column) holding a read-only `QPlainTextEdit scanLogText` (Consolas 9) with a tooltip. `set_ControlsEnabledDuringScan` does not touch `QPlainTextEdit`, so the box stays scrollable during a scan,
+  - log file: `<dataSave_path>/ScanLog_<date of scan start>.txt`, i.e. the day folder, or the custom folder when one was chosen. The path is fixed at scan start, so a scan running past midnight stays in one block. The file is opened in append mode per write, so everything written is on disk even if the program dies,
+  - each scan is one block, separated by a blank line and a `=` rule. Header (`start_scan_log()`, GUI thread, called in `runScan()` after the instrument check): start time, mode, extra info, save folder, then only instruments that are ticked and connected - Lock-in sens / TC / wait, Stage start / non-zero step groups / repeat, Rotary start / step, rotation Coupled / Independent (with the same "calibration forces coupled" rule as the scan) and R1 / R2 repeats, temperature list with tolerance and sample soak (or "no temperature scan"), AutoBlock with its pass channel,
+  - timestamped events (`scan_log_event()`, routed from the scan thread through the new `ScanThread.scan_log` signal so that only the GUI thread writes the box and the file): T point reached, T point measured without stabilization, data file name of every temperature point, peak tracking off (1D_THz), one peak-tracking summary per data file, and the end line with duration,
+  - peak tracking in 1D_THz runs before every stage2 sweep, so logging each result would add hundreds of lines per scan; the per-sweep values are already in the HDF5 `dynamic_THz_peak_pos`. The log gets one line per data file instead: `N sweeps, peak min .. max mm, K found no peak` - enough to see drift and failures,
+  - end line: `Scan finished`, `Scan stopped by user`, `Scan aborted: <reason>` (temperature stabilization failed other than by Stop, or AutoBlock could not pass the beam), or `Scan error: <message>`. The early error returns inside `_execute_scan_logic()` emit `error_occurred` and then `run()` still emits `scan_finished`; `end_scan_log()` only honours the first call, so an error is never followed by a false "finished",
+  - deliberately not logged: point readings, moves, countdowns, peak-search progress and other prints,
+  - verified by a headless end-to-end run (17/17) through the real `runScan()` -> `ScanThread` with fake lock-in / stages / iTC / flip mount: dated file created; header lists only active instruments; box and file identical; no point readings; two scans form two separated blocks; 1D_THz with a rotary gives exactly one peak summary line; Stop -> "stopped by user"; both-stage-repeats error -> one "Scan error" line and no "finished"; 2-point temperature scan with AutoBlock -> both T points, both data files, finished; failing temperature read -> "aborted: temperature stabilization failed at 10 K". Not yet run on the lab PC.
+  - the check is kept as a regression test: `OPTP_System/tests/test_scanlog.py` (headless, no hardware, writes to a temp folder; run `python OPTP_System/tests/test_scanlog.py`, exit code 0 = all pass). It execs the v3.1 source, so it must be pointed at the new file when the version is bumped,
+  - confirmed with the user: one log file per day (`ScanLog_<date>.txt` in that day's data folder, appended by every scan of the day), and one peak-tracking summary line per data file instead of one line per sweep.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 

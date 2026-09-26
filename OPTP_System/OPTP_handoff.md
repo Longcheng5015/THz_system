@@ -4,7 +4,7 @@ Companion to `OPTP_dev_log.md`. The dev log records **what was changed**; this f
 **what is still open**. Every item here should either get done or get an explicit decision to
 drop it - do not let items rot silently.
 
-Last updated: 2026-08-28 (after v2.8)
+Last updated: 2026-09-26 (after v3.1)
 
 **Working rules for this folder**
 - All `.py` and `.ui` files here are **CRLF throughout**. `sed -i` under MSYS/Git-Bash silently
@@ -17,7 +17,9 @@ Last updated: 2026-08-28 (after v2.8)
 
 ---
 
-## P0 - Blocking: the v2.8 heater / PID changes have never touched the instrument
+## P0 - v2.8 heater / PID on the real instrument - DONE
+
+**2026-09-26: verified on the real iTC by the user - no problems.** Checklist kept below for reference.
 
 The whole v2.8 heater path was verified only against stubs and a fake VISA session. **No
 manual-heater command in this project has ever been executed against the real controller**, so the
@@ -81,6 +83,19 @@ They are not suspected broken; they have simply never been run for real.
   of remote/unlock mode at the front panel, return to the software, exit. Confirm no
   `VI_ERROR_INV_OBJECT`, every instrument closes, and the failure (if any) is reported as a warning
   rather than aborting the shutdown. (~line 199)
+- [ ] **v3.0 flip mount / AutoBlock** - only tested against a simulated mount. On the real MFF:
+  (a) ~~confirm serial `37872830` connects~~ (connected, 2026-09-26); confirm `FM_Indicate` matches
+  the beam - since v3.1 the LED is **lit = pass, off = blocked**;
+  (b) confirm which physical position is CH1 and which is CH2, and set `fmPassCh` accordingly;
+  (c) run a 2-point temperature scan with AutoBlock on and watch the beam: blocked during every
+  ramp + soak, open during each measurement, blocked again at the end; (d) press Stop mid-ramp and
+  mid-measurement - the mount must end up blocked both times.
+- [ ] **v3.1 ScanLog** - on the lab PC run one real scan (ideally a 2-point temperature scan) and
+  check `ScanLog_<date>.txt` appears in the day's data folder with the conditions and events.
+- [ ] **v3.1 Instrument Connections tab** - on the lab PC: press Scan devices and check the VISA
+  and Kinesis lists show the real instruments; connect everything with the defaults (must behave
+  exactly like v3.0); restart and confirm the values come back. Rotary serials were verified by the
+  user on 2026-09-26 (open question closed).
 
 ---
 
@@ -112,6 +127,8 @@ They are not suspected broken; they have simply never been run for real.
   through 17 checks, but the script lived in a temp directory and is gone. Earlier entries did the
   same, so this matches existing practice - but if these functions are touched again, consider
   keeping the harness in the repo as a regression test instead of rewriting it each time.
+  Since v3.1 regression tests live in `OPTP_System/tests/` (first one: `test_scanlog.py`, headless,
+  fake instruments); new harnesses should go there too.
 - [ ] **The in-file version list is stale.** The `# region Debugging records` docstring at the top
   of the `.py` still stops at v2.0; v2.5 through v2.8 were only recorded in `OPTP_dev_log.md`.
   Either resume maintaining it or delete it so it stops looking authoritative.

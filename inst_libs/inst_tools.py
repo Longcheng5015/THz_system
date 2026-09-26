@@ -7,6 +7,7 @@ Current features:
 2. VISA resource scanning that lists all currently available instrument resources
    (similar to VISA Resource in NI LabVIEW).
 3. Non-intrusive VISA resource info discovery without opening devices.
+4. Thorlabs Kinesis serial-number scanning (stages, rotary stages, flip mounts).
 
 Design goal:
 - This file is a reusable utility library for import/call usage in test programs.
@@ -14,6 +15,7 @@ Design goal:
 
 Dependencies:
 - pyvisa
+- pythonnet + Thorlabs Kinesis (only for list_kinesis_serials, imported on demand)
 
 Install example:
 	pip install pyvisa
@@ -148,3 +150,33 @@ class InstrumentTools:
 			print("No VISA resources found.")
 
 		return info_list
+
+	@staticmethod
+	def list_kinesis_serials(kinesis_dir: str = r"C:\Program Files\Thorlabs\Kinesis") -> List[str]:
+		"""
+		Get the serial numbers of all Thorlabs Kinesis devices currently visible to this PC.
+
+		pythonnet and the Kinesis DLLs are imported only when this is called, so importing this
+		module still works on a PC without Kinesis. Does not connect to any device.
+
+		Args:
+			kinesis_dir: Kinesis installation folder that holds the DeviceManagerCLI DLL.
+
+		Returns:
+			A list of serial-number strings.
+
+		Raises:
+			RuntimeError: Raised when Kinesis cannot be loaded or the device scan fails.
+		"""
+		try:
+			import sys
+			import clr
+			if kinesis_dir not in sys.path:
+				sys.path.append(kinesis_dir)
+			clr.AddReference("Thorlabs.MotionControl.DeviceManagerCLI")
+			from Thorlabs.MotionControl.DeviceManagerCLI import DeviceManagerCLI
+
+			DeviceManagerCLI.BuildDeviceList()
+			return [str(serial) for serial in DeviceManagerCLI.GetDeviceList()]
+		except Exception as exc:  # pragma: no cover - depends on local Kinesis runtime
+			raise RuntimeError(f"Kinesis device scan failed: {exc}") from exc
