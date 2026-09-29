@@ -2547,6 +2547,7 @@ class moSys:
                 #region Lockin data acquisition and saving
                 wait_time1_s = self.ui.wait1.value() / 1000.0  # convert ms to s
                 wait_time2_s = self.ui.wait2.value() / 1000.0  # convert ms to s
+                l1x, l1y, l2x, l2y = 0.0, 0.0, 0.0, 0.0
                 # collect data from Lockin1
                 try:
                     if self.lockin1:

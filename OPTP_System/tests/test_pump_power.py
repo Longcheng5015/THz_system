@@ -146,8 +146,7 @@ def configure(temperature: bool, autoblock: bool, record: bool, pass_first: bool
                 "activeRot3", "activeiTC", "activeFlipMount", "activePowerMeter", "ScanT", "AutoBlock", "pmRecord"):
         getattr(ui, box).setChecked(False)
     ui.activeLockin1.setChecked(True); m.lockin1 = FakeLockin()
-    # both lock-ins: MO v2.5 still reads l2x unset when lock-in 2 is not connected (UnboundLocalError), unrelated here
-    ui.activeLockin2.setChecked(True); m.lockin2 = FakeLockin()
+    m.lockin2 = None  # lock-in 2 not connected: every system must still scan (MO v2.5 used to stop with UnboundLocalError)
     ui.activeStage1.setChecked(True); m.stage1 = FakeStage()
     ui.wait1.setValue(0); ui.wait2.setValue(0)
     ui.iPos1.setValue(10.0)
