@@ -152,6 +152,20 @@ This document records the overall development and debugging history for the Pola
   - Resolved `AttributeError: 'PySide6.QtWidgets.QWidget' object has no attribute 'setBackground'` when rendering the main chart.
   - Passed automated smoke testing for UI instantiation, custom widget registration, fitting math, and clean exit.
 
+### v1.1.4
+- **Date**: 2026-09-29
+- **Main Change**: `inst_libs/thorlabs_PM100D.py` now talks to the PM100D over pyvisa (SCPI) instead of the Thorlabs TLPM DLL. The meter (P0020951) was switched to its NI-VISA driver with the Thorlabs Power Meter Driver Switcher; on the TLPM driver pyvisa does not see it, and on the NI-VISA driver the old TLPM code no longer finds it.
+- **Details**:
+  - Transport: `open()` / `close()` / `write()` / `query()` use pyvisa like `stanford_SR830` (read/write termination `
+`, `timeout_ms`, `query_delay_s`; `close()` leaves the shared ResourceManager open). `query()` honours `retry_count` / `retry_delay_s`. `idn()`, `set/get_wavelength_nm()`, `measure_power()` are now SCPI (`*IDN?`, `SENS:CORR:WAV`, `MEAS:POW?`). All the SCPI methods that used to raise ("Raw SCPI ... not supported by the TLPM driver transport") now work.
+  - `list_resources()` asks VISA for `USB?*::0x1313::0x8078::?*::INSTR` only (0.06 s; a full VISA scan of the serial/GPIB ports took 6-30 s on this PC). `list_resources_with_idn()` returns the real `*IDN?`.
+  - No `viClear()` on open or before a retry: measured on this meter, the first query after a clear timed out 15/15 times (8/15 within a running session), which made the first connect take 12.5 s. A query that gets no reply recovers without a clear.
+  - "Busy" is now detected with pyvisa's `error_resource_busy`; the old constant `-1073807343` was actually VI_ERROR_RSRC_NFOUND, so a wrong address was reported as "PM100D is busy".
+  - SCPI headers corrected after the firmware (2.6.0) answered "Undefined header": line frequency `SYST:LFR`, zeroing `SENS:CORR:COLL:ZERO:INIT/ABOR/STAT/MAGN`, responses `SENS:CORR:POW:PDI:RESP`, `SENS:CORR:POW:THER:RESP`, `SENS:CORR:ENER:PYRO:RESP`, delta state `SENS:<mode>:REF:STAT`, photodiode low-pass `INP:PDI:FILT:LPAS:STAT`. Display brightness/contrast are 0..1 floats (were parsed as int and raised).
+  - Interface used by `Polarization_cali_v1.0.py` is unchanged (constructor arguments, `open`, `idn`, `measure_power`, `close`). Its `query_delay_s=0.1` is now applied, so one power reading takes ~100 ms (the meter itself answers in ~3 ms).
+  - `inst_libs/test_PM00D.py`: "not found" message now points at the VISA driver instead of TLPM.
+  - Verified on the PM100D P0020951 with the S302C thermal sensor (opto_test env): connect flow 3x (0.15 s each), 96 calls each followed by `SYST:ERR?` with no error, set -> read back -> restore for unit, averaging, wavelength, auto range, range, attenuation, beam diameter, delta state, low-pass and brightness; settings left as found (W, 525 nm, avg 1, auto range, POW). Not supported by this sensor (instrument reports "Wrong sensor type"/"Illegal parameter"): energy range, energy, energy density, temperature. `zero_initiate()` / `set_line_frequency()` not executed (zeroing needs the sensor covered).
+
 ---
 
 ## Summary

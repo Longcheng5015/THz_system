@@ -419,6 +419,132 @@ This document records the overall development and debugging history for the OPTP
   - each system saves its connection settings under its own QSettings name (`MO_System`, `OPTP_image_System`, `THz_emission_system`),
   - regression test for all three: `OPTP_System/tests/test_system_sync.py <mo|img|thz>` (headless, stand-in instruments, temp ini file instead of the registry). Run it with the `opto_test` conda env, the environment the systems run in: MO 28/28, OPTP image 26/26, THz 26/26 (real pipython), and `tests/test_scanlog.py` 17/17.
 
+### v3.2
+- Date: 2026-09-28
+- Main change: `OPTP_system_iTC_v3.2.py` + `OPTP_iTC_main_v3.2.ui` created as copies of v3.1 for further development; the .py now loads the v3.2 .ui.
+- Details:
+  - the .ui is a byte-for-byte copy of `OPTP_iTC_main_v3.1.ui` (CRLF); the .py differs from v3.1 only in the .ui file name on line 70 (the v3.1 .py is LF throughout, and the copy keeps that),
+  - verified: `py_compile` passes in the `opto_test` env, and a headless start loads the v3.2 .ui with both tabs, ScanLog and the FlipMount group present,
+  - `tests/test_scanlog.py` still targets v3.1; point it at v3.2 once v3.2 starts to diverge.
+
+### v3.2 - Sub-tab widget under Instrument Connections
+- Date: 2026-09-28
+- Main change: `OPTP_iTC_main_v3.2.ui`, tab `Inst. Config. && Log`: a `QTabWidget configTabs` now sits under the `connGroup` panel, with pages `peakSearchTab` (title `Peak search`) and `configTab2` (title `Tab 2`, placeholder). Both pages are empty for now.
+- Details:
+  - it replaces `connVSpacer` at `tab2Layout` (1,0), so it takes the column width of the connection panel and the remaining height down to the bottom of `ScanLog`; `connGroup` and `ScanLog` are unchanged,
+  - no code references the new widgets yet; the .py is unchanged,
+  - verified: the .ui stays CRLF; a headless start of v3.2 loads it, `configTabs` has the two pages in order, and the rendered tab shows it directly under the connection panel at the same width (462 px).
+
+### v3.2 - Temperature drift compensation (stage1 / stage2 coupling), Peak search tab
+- Date: 2026-09-28
+- Main change: in every temperature scan, of every scan mode, the stage1 THz peak is searched at each temperature point and the drift is applied to both delay lines: `iPos1 += delta`, `iPos2 += s * delta` (delta = new peak - `TDS Ppos`, s = -1 for Reverse). The pump-THz delay therefore stays the same across temperatures. Replaces the old 1D_THz-only, per-sweep peak tracking, which corrected stage1 but left stage2 (and so the pump-THz delay) behind, and did nothing in 2D_THz.
+- Why: stage1 and stage2 are coupled - moving stage1 by delta to re-peak the THz changes the pump-THz delay, which stage2 (mounted in reverse) has to undo. The drift itself (sample holder / sample thermal expansion) moves the collinear THz and pump paths together and does not change that delay; the probe path is stable (both confirmed experimentally by the user). With a ~42 um response FWHM, a few um of uncompensated drift already changes the 1D response by >10 %.
+- Details:
+  - UI (`OPTP_iTC_main_v3.2.ui`, tab `Inst. Config. && Log` -> `configTabs` -> `Peak search`): `driftComp` (checkbox, default on), `TDS_Ppos` (editable, -1 = special value `Not set`, not kept after restart), `R1_step` / `R1_pts` (default 3 um / +/-30), `R2_step` / `R2_pts` (default 1 um / +/-30), `stage2CompDir` (checkable, Reverse (default) / Forward), `passOrder` (checkable, `Pass -> Soak` (default) / `Soak -> Pass`). Tooltips on every control and label,
+  - trigger: `temperature_scan_active()` (iTC ticked and connected, ScanT ticked, points in the list; now also used by the ScanLog header and `_execute_scan_logic`) and `driftComp` ticked. Non-temperature scans are never compensated,
+  - start of a compensated scan (`confirm_drift_compensation()` in `runScan()`): refused when `TDS Ppos` is `Not set` or Stage1 / Lock-in 1 is not active and connected; otherwise a Yes/No dialog shows TDS Ppos, iPos1, iPos2, direction, both rounds and the beam order, and notes when stage1 is a single fixed point and iPos1 differs from TDS Ppos by more than one Round-2 step,
+  - per temperature point: block -> go to T -> stabilise -> [pass, if `Pass -> Soak`] -> soak -> [pass, if not yet] -> all active stages to the scan start (iPos1, iPos2, iRot1-3) -> peak search around TDS Ppos -> compensate -> sequences and data file from the new values -> existing travel check -> scan. A local `beam_passed` flag passes the beam exactly once per point on every path (incl. no stabilisation / no soak),
+  - `get_TDS_peak_pos(thread, center_pos)`: centre = TDS Ppos, steps and points from the tab, symmetric windows centre +/- N steps (was -30..+29), single lock-in read per point as before. A round-1 maximum on the window edge now counts as failed (`reason` in the result), as does a window without any finite reading,
+  - `compensate_temperature_drift()` returns the new values and the scan uses them directly; the UI (`iPos1`, `iPos2`, `TDS_Ppos`) is only updated through signals (`tds_peak_update`, new `ipos2_update`, new `ppos_update`), because an asynchronous write-back could still be pending when the file is built. `_execute_scan_logic` keeps `scan_iPos1` / `scan_iPos2` / `scan_Ppos` across temperature points instead of reading the UI,
+  - failed search: iPos1 / iPos2 / Ppos kept, measurement continues, `WARNING: peak search failed (...)` in ScanLog (user's choice). Stop during the search ends the scan before the data file is created,
+  - data: the stored `iPos1` / `iPos2` are the compensated values, so no offset dataset is needed. Removed: `dynamic_THz_peak_pos`, the per-polarization / per-sweep 1D peak tracking inside the scan loop, `peak_tracking_enabled` and the per-file peak summary,
+  - ScanLog: header `Drift comp. : on, TDS Ppos ..., R1 ..., R2 ..., stage2 Reverse` (or `off`), `AutoBlock : on (...), Pass -> Soak`; one `Peak search: Ppos a -> b mm (delta +x um); iPos1 -> ..., iPos2 -> ... (Reverse)` line per temperature point,
+  - verified headless with `tests/test_drift_comp.py` (25/25, `opto_test` env; fake lock-in = Gaussian stage1 peak drifting -0.4 um/K with the fake iTC temperature): defaults and toggle captions; refusal without Ppos and without Stage1; dialog No stops, Yes runs; mismatch note; 1D_THz over 10/20/30 K: per-file iPos1 = drifted peak, iPos2 moved opposite (+4 um per 10 K), every measured point on the peak, UI ends on the compensated values, one ScanLog line per point, exactly 61 + 61 search reads per point with stage2 at iPos2; Forward sign; 2D_THz, THz_Scan and POL_1D shift iPos1 (window start / fixed point) and iPos2 by the same rule; `Pass -> Soak` gives block, pass, soak, search and `Soak -> Pass` block, soak, pass, search, one pass per point, blocked at the end; NaN readings and a peak outside the window keep the values, continue and log a WARNING; Drift comp. off and non-temperature scans run no search and show no dialog; Stop during the search ends the scan without a data file and with the beam blocked,
+  - regression: the v3.1 ScanLog test run against v3.2 (with Drift comp. off) passes 16/17 - the one failure is the per-file peak summary, removed on purpose,
+  - `tests/test_scanlog.py` still targets v3.1 (with Drift comp. on by default a v3.2 temperature scan needs TDS Ppos). Not yet run on the lab PC.
+
+### v3.2 - scanMode tooltip matches the modes in the code
+- Date: 2026-09-28
+- Main change: the `scanMode` tooltip in `OPTP_iTC_main_v3.2.ui` was rewritten to match `_init_scanMode_combobox()`.
+- Details:
+  - the old tooltip listed a mode that does not exist (`1D_POL`), used the old names `TDS_Scan` / `1D_TDS` / `2D_TDS` instead of `THz_Scan` / `1D_THz` / `2D_THz`, was in a different order from the combobox, and said "stage1 beam act as pump" (in OPTP the pump delay is stage2),
+  - new text, in combobox order, with the loop order actually used by the code (outermost -> innermost): `THz_Scan` rotation stages -> stage1 -> stage2; `1D_THz` rotation stages -> stage1 -> stage2 (stage1 fixed at the peak); `POL_1D` stage1 -> stage2 -> rotation stages (planner `POL_2D` branch); `2D_THz` rotation stages -> stage2 -> stage1 (local override); plus one line that every mode is drift-compensated in temperature scans with Drift comp. on,
+  - only the tooltip string changed; the .ui stays CRLF and loads through QUiLoader,
+  - found but NOT changed in this entry: the polar chart is only fed when `scan_mode == "POL_2D"` (line ~2505), but this system's mode is called `POL_1D`, so the polar chart never updates during a POL_1D scan - fixed in the next entry.
+
+### v3.2 - Polar chart fed during POL_1D scans
+- Date: 2026-09-28
+- Main change: the polar chart condition in `_execute_scan_logic()` now tests `iterator_mode == "POL_2D"` instead of `scan_mode == "POL_2D"`, so the polar chart is updated during a POL_1D scan again.
+- Details:
+  - `scan_mode` is the combobox text. This system calls the mode `POL_1D` and only maps it to `iterator_mode = 'POL_2D'` for the shared planner, so `scan_mode == "POL_2D"` was never true and the polar chart never received data. The condition came from MO, whose combobox mode really is called `POL_2D`; it had been like this since OPTP v1.0 and no log records it as intended,
+  - `iterator_mode` describes the scan itself (polarization innermost) rather than the combobox name, so the same line is correct in OPTP (`POL_1D` -> `POL_2D`) and in MO (`POL_2D`), which keeps the systems' code in sync,
+  - verified headless (v3.2, `opto_test`): a POL_1D scan with Rotary2 0..350 deg in 36 steps sends 36 polar updates with the right angles; THz_Scan, 1D_THz and 2D_THz send none; `tests/test_drift_comp.py` still 25/25.
+
+### v3.2 - Scan mode POL_1D renamed to POL_2D (same name as MO and the shared planner)
+- Date: 2026-09-28
+- Main change: the polarization-dependent scan mode is now called `POL_2D` in OPTP v3.2 as well, so the combobox, the code and the shared planner use one name. Replaces the previous entry's `iterator_mode` fix.
+- Details:
+  - why: the same loop logic had two names - `POL_1D` in the combobox, file names and ScanLog, `POL_2D` inside the shared planner (`ScanPlanner.build_scan_iterator`, whose only mode test is `if scan_mode == "POL_2D"`: polarization innermost, every other name puts it outermost) - and the code compared against both. MO already calls this mode `POL_2D`. THz emission (`THz_pol`) and OPTP image (`POL_1D`) keep their own names for now,
+  - `_init_scanMode_combobox()`: list is `['THz_Scan', '1D_THz', 'POL_2D', '2D_THz']`; the docstring now states each mode's loop order (it still described the pump as "stage2 beam" loosely and had no loop orders),
+  - the `iterator_mode` variable and the `POL_1D -> POL_2D` mapping are gone: `build_scan_iterator(scan_mode=scan_mode, ...)`; the polar chart (`scan_mode == "POL_2D"`) and the TDS branch (`elif scan_mode == "POL_2D"`) use the same name,
+  - `scanMode` tooltip in `OPTP_iTC_main_v3.2.ui`: `'POL_2D'` (noted as the MO name); `tests/test_drift_comp.py` uses `POL_2D`,
+  - effect on data: polarization scans now produce `..._POL_2D.h5` / `..._POL_2D_<T>K.h5` and `Mode : POL_2D` in ScanLog; earlier files keep `POL_1D` in their names,
+  - verified (`opto_test`, headless): POL_2D with stage2 at 2 points and Rotary2 0..350 deg / 36 steps sends 72 polar updates in the order 0..350, 0..350 (polarization innermost); THz_Scan / 1D_THz / 2D_THz send none; `tests/test_drift_comp.py` 25/25; the .py stays LF, the .ui CRLF,
+  - found, NOT changed: a TDS trace of exactly two points makes `DataProcess.thz_fft_calc()` (shared `func_cores/scan_func_core.py`) raise `IndexError` at `time_step_uniform[1]` - the uniform time grid has one point - inside `update_TDS_FDS_chart()`, whose guard only rejects fewer than two points. The slot exception is printed and the scan continues; only that FDS update is lost.
+
+### v3.3 - Power meter box: live pump power, wavelength, Zero, and Record into the data files
+- Date: 2026-09-29
+- Main change: `OPTP_system_iTC_v3.3.py` + `OPTP_iTC_main_v3.3.ui` (copied from v3.2) use the Thorlabs PM100D. The pump reaches the meter while the flip mount is on Block, so outside a scan the box monitors the pump power, and with Record + AutoBlock the pump power is measured at every temperature point right before the beam is let through and saved in that point's data file.
+- Details:
+  - UI (Power Meter box, between the LED and the display, all with tooltips): `pmWavelength` (nm), `pmRefresh` (ms, display interval and spacing of the Record readings, default 500), `pmSettle` (s, default 15), `pmAvgNO` (N readings, default 10), `pmZero`, `pmRecord` (checkable, like AutoBlock). `PowerMeterDisp` shows plain decimal mW (`-0.206 mW`, was `0.000e0.0`), read-only, max width 110 px; `PMLed` got a tooltip. All of them are locked during a scan by `set_ControlsEnabledDuringScan()` like every other input,
+  - connect / close: `activePowerMeter` + `PM_res` (Inst. Config.) -> `PM100D(resource, timeout_ms=3000)`; the wavelength box is read from the meter on connect (the meter holds the setting), the display timer starts; `closeInstruments()` closes it through `close_one()` and resets the display,
+  - live display: `QTimer` in the GUI thread -> `measure_power()`; `pm_lock` is shared with Record, and the timer skips a tick instead of waiting while Record holds it. A read error stops the timer (a dead session would otherwise block the GUI for a full timeout on every tick),
+  - Zero: confirmation dialog (the sensor must be dark: flip mount on Pass, ~20 s to cool), `zero_initiate()`, then polls `get_zero_state()` (max 30 s) without holding the lock; the display timer is paused meanwhile,
+  - Record (`record_pump_power()`, scan thread), only when Record and AutoBlock are both on: called right before AutoBlock's pass - before the early pass for 'Pass -> Soak', otherwise before the pass that precedes drift compensation and the measurement - so once per temperature point, or once before a scan without temperature points. If the beam is not blocked it is blocked first. Settle time counts from the last confirmed block move (`_fm_blocked_since`, set in `set_flipmount_blocked()`); in a temperature scan the beam has been blocked through the stabilization, so normally nothing extra is waited. If the block time is unknown (blocked before the program moved it) the full settle time is waited. Then N readings one refresh interval apart; a stop request is honoured during all waits,
+  - storage: after the point's HDF5 file is created, `save_pump_power()` writes `pump_power_W` (mean), `pump_power_std_W`, `pump_power_samples_W`, `pump_power_wavelength_nm`, `pump_power_settle_s`, `pump_power_interval_ms`, `pump_power_time` (datasets, like the other scan parameters). ScanLog: header line `Pump power  : Record on (settle 15 s, N 10 x 500 ms, 800 nm)` (or that Record is on without AutoBlock, so nothing is recorded) and one `Pump power x.xxx mW +- y.yyy mW (N=.., .. nm)` line per point, before its `Data file:` line,
+  - a failed reading does not stop the scan: that point's file has no pump power datasets and the ScanLog says `Pump power NOT recorded: ...`,
+  - pre-scan check: the meter is in `check_instruments_ready()` (ticked but not connected refuses the scan) and, like the flip mount, does not count as a measuring instrument; Record + AutoBlock without a connected meter refuses the scan with `Power meter (Record is on)`,
+  - uses `inst_libs/thorlabs_PM100D.py` on pyvisa (see `Polarization_cali_dev_log.md` v1.1.4; the TLPM version is kept in `inst_libs/backup_before_pm100d_pyvisa/`),
+  - verified (`opto_test`): new `tests/test_pump_power.py` 48/48 headless (both beam orders over 2 temperature points, single scan starting on Pass, Record without AutoBlock, AutoBlock without Record = unchanged block/pass sequence, read failure, stop during the settle wait - no pass, no file -, settle timing, pre-scan check, display, wavelength, Zero, close); `tests/test_drift_comp.py` 25/25 against v3.3. Real PM100D P0020951 through the v3.3 code with a fake flip mount: connect 0.10 s, wavelength read on connect and set/restored, display updates, Record in a worker thread while the display timer kept reading (no conflict), datasets read back; meter left as found. Zero was not run on the meter (needs the sensor dark). Not yet run in a real scan with the real flip mount,
+  - `tests/test_scanlog.py` (still pinned to v3.1, see the v3.2 entry) run against v3.3: its temperature part stops at the modal 'Drift comp.' confirmation (`confirm_drift_compensation()`, on by default since v3.2, needs a TDS Ppos), which never closes headless, and its check 'one peak-tracking summary line' fails because the v3.2 peak-tracking log lines differ; all its other checks up to there pass. Not changed here. `test_pump_power.py` unticks 'Drift comp.' so it cannot stop at that dialog.
+
+### v3.3 - PM config tab: wavelength, power range, refresh
+- Date: 2026-09-29
+- Main change: wavelength and refresh interval moved out of the Power Meter box into Inst. Config. > `PM config` (the former empty `Tab 2`, `configTab2`), and a Power range combobox was added there. The box keeps settle, N, Zero, Record and the display.
+- Details:
+  - which settings are fixed steps (checked on the meter): the power range is - 4 decades set by the sensor (S302C: 3.446 mW, 34.46 mW, 344.6 mW, 3.446 W; any other value is moved up to the next range) - so it is a combobox `pmRange` (Auto + the ranges). The wavelength is continuous (S302C 185 .. 20000 nm) and the refresh interval is the program's own timer, so both stay spin boxes,
+  - layout like the Peak search tab: labels `Wavelength (nm)`, `Power range`, `Refresh (ms)` (with the controls' tooltips) and the controls in grid `pmGrid`; the units moved from the spin-box suffixes into the labels,
+  - `load_pm_settings()` on connect: wavelength box limited to the sensor (`SENS:CORR:WAV? MIN/MAX`) and set to the meter's value; the range list is built from `SENS:POW:RANG:UPP? MIN/MAX` in decades, and the box shows the meter's state (Auto, or the nearest range) with signals blocked, so connecting never changes the meter,
+  - `set_pm_range()`: Auto -> `set_power_auto_range(True)`; a range -> auto off + `set_power_range_upper()`, read back and printed,
+  - verified (`opto_test`): `tests/test_pump_power.py` 54/54 (6 new PM config checks: range list, wavelength limits, fixed range and Auto written to the meter, a meter already on a fixed range shown without writing back). Real PM100D P0020951 through the GUI code: list `Auto, 3.446 mW, 34.46 mW, 344.6 mW, 3.446 W`, wavelength box 185 .. 20000 nm, 34.46 mW -> meter auto off at 0.03445766 W, Auto -> meter back on auto; no SCPI errors; meter left on auto.
+
+### v3.3 - Wavelength: default 800 nm, sent to the meter on connect; tooltip
+- Date: 2026-09-29
+- Main change: the PM config wavelength stays a plain number box (not a combobox), defaults to 800 nm, and is now sent to the meter when it connects instead of being overwritten by the meter's own value.
+- Details:
+  - why no combobox: checked on the meter, the wavelength is not a fixed set of values - 532, 633.3, 777, 1064, 1550, 2345.6 and 10600 nm were all accepted and read back exactly; 150 and 25000 nm were refused (`-222 Data out of range`) and the old value kept. Preset lists on the front panel or in the Thorlabs software are only shortcuts there,
+  - `load_pm_settings()`: box limited to the sensor (185 .. 20000 nm for the S302C, the box value is clamped into it), then `set_wavelength_nm(box)` and the accepted value shown back. Before, connecting copied the meter's value (e.g. 525 nm) into the box, so the 800 nm default never reached the meter. Editing the box still sends it at once, as before,
+  - tooltip of the box and its label rewritten: what the wavelength does (correction with the sensor's calibration data, not what is detected), when it is sent, the S302C range and flat response vs. a photodiode sensor, whole nanometres only, front-panel presets are only shortcuts,
+  - verified: `tests/test_pump_power.py` 55/55 (default 800 nm; a meter left on 525 nm gets 800 nm on connect). Real PM100D: meter on 525 nm -> connect through the GUI code -> meter 800.0 nm, no error; set back to 525 nm afterwards.
+
+### v3.3 - Power Meter box: plain settle / N boxes, row aligned with the rest
+- Date: 2026-09-29
+- Main change: `pmSettle` and `pmAvgNO` are plain number boxes (the ` s` suffix and `N ` prefix are gone; the units are in the tooltips), at most 50 px wide, and the Flip Mount / Power Meter row is split 1:1 like the rows above and below.
+- Details:
+  - the suffix / prefix were display text only (typing just the number always worked), but they were redundant next to the tooltips,
+  - `gridLayout_16` columnstretch `0,0,0,0,1,1,1`: the two number boxes keep their size, Zero, Record and the display share the rest,
+  - `gridLayout_4` got `columnstretch="1,1"`; without it the two group boxes were sized by their content (Flip Mount 22..394, Power Meter 400..815 px). Now 22..416 and 422..815, the same as Lock-in, Stage and Rotary,
+  - verified: rendered offscreen (positions above), `tests/test_pump_power.py` 55/55.
+
+### v3.3 - PM_realDisp: live power display on/off
+- Date: 2026-09-29
+- Main change: new checkable button `PM_realDisp` ("Realtime", like the lock-in and temperature Realtime buttons, released by default) between Record and the power display. The power is read and shown only while it is pressed and the meter is connected; before, the display ran whenever the meter was connected.
+- Details:
+  - `sync_pm_display_timer()` is the one place that starts/stops the display timer (pressed and connected -> run, else stop); called on toggle, after connect and after Zero. Pressing it before connecting is allowed, the display then starts on connect. Releasing it stops the reading and shows `-- mW`, so a frozen number cannot pass for a live one,
+  - a read error stops the display and releases the button (pressing it again retries; before, only a reconnect helped),
+  - stays enabled during a scan like `realtimeDispT` (added to `always_enabled` in `set_ControlsEnabledDuringScan()`); Record and the display share `pm_lock`, so they never read at the same time,
+  - layout: Qt gives a push button with text a ~80 px size hint regardless of the text, so three buttons squeezed the display to ~20 px and widened the whole left panel (815 -> 861 px). Zero / Record / Realtime now have fixed widths 44 / 56 / 62 px, the display a minimum of 80 px (max 110), and `gridLayout_16` horizontal spacing 4: the panel is back to 815 px, Flip Mount / Power Meter still split 22..416 / 422..815 like the other rows, and `-0.206 mW` and `1234.567 mW` fit (rendered offscreen). The display tooltip now says it updates only while Realtime is pressed,
+  - verified: `tests/test_pump_power.py` 64/64 (9 new/changed checks: default released, connect with it released / pressed, press / release, pressed before connecting, read error releases it, stays enabled during a scan while Zero / Record / settle are locked, close stops it). Real PM100D through the GUI code: released -> no reads and `-- mW`, pressed -> readings, released -> `-- mW`; meter wavelength set back to 525 nm afterwards.
+
+### v3.3 - Power Meter box: settle / N boxes 28 px, Realtime 74 px (checked with the real Windows rendering)
+- Date: 2026-09-29
+- Main change: `pmSettle` and `pmAvgNO` fixed at 28 px (min = max), about 3/5 of their earlier width; `PM_realDisp` widened from 62 to 74 px because its text was cut off; the power display is unchanged (80 .. 110 px).
+- Details:
+  - correction: an intermediate step set the two boxes to 22 px, based on offscreen renders (`QT_QPA_PLATFORM=offscreen`). Those use other fonts than the real UI (Segoe UI), so the widths and text fits read from them were wrong: in the real UI the boxes had been 43 / 49 px (not 37), 22 px cut off even "15" / "10", and "Realtime" (50 px of text) did not fit a 62 px button. All numbers below are from the Windows platform plugin with `WA_DontShowOnScreen` (real fonts, nothing shown on screen),
+  - at 1920 x 1040 (this PC's screen, maximised): 2-digit values fit the 28 px boxes, 3-digit values (e.g. settle 120 s) are cut off in the box but still accepted; "Realtime" fits pressed and released; the display is 110 px and shows `1234.567 mW` in full. At 1661 px the display is 84 px and cuts the first digit of a reading above 1 W,
+  - Flip Mount / Power Meter stay aligned with the Lock-in / Stage rows at both window sizes (1920: 22..479 / 485..942; 1661: 22..436 / 442..855); at 1920 the left panel width is unchanged,
+  - `tests/test_pump_power.py` 64/64.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 

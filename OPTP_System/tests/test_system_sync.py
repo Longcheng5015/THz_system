@@ -11,9 +11,9 @@ import os, sys, tempfile, threading, time, glob
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-FILES = {'mo': 'MO_System/MO_system_iTC_v2.4.py',
-         'img': 'OPTP_image_System/OPTP_iTC_image_v1.4.py',
-         'thz': 'THz_emission_system/THz_emission_system_iTC_v1.3.py'}
+FILES = {'mo': 'MO_System/MO_system_iTC_v2.5.py',
+         'img': 'OPTP_image_System/OPTP_iTC_image_v1.6.py',
+         'thz': 'THz_emission_system/THz_emission_system_iTC_v1.4.py'}
 SYSTEM = sys.argv[1]
 SRC = os.path.join(ROOT, FILES[SYSTEM])
 SYS_DIR = os.path.dirname(SRC)

@@ -4,7 +4,7 @@ Companion to `OPTP_dev_log.md`. The dev log records **what was changed**; this f
 **what is still open**. Every item here should either get done or get an explicit decision to
 drop it - do not let items rot silently.
 
-Last updated: 2026-09-26 (after v3.1)
+Last updated: 2026-09-29 (after v3.3)
 
 **Working rules for this folder**
 - All `.py` and `.ui` files here are **CRLF throughout**. `sed -i` under MSYS/Git-Bash silently
@@ -14,6 +14,83 @@ Last updated: 2026-09-26 (after v3.1)
 - No feature is complete until `OPTP_dev_log.md` has an entry for it (see `CLAUDE.md`).
 - Shared libraries live in `inst_libs/` and are used by MO_System and OPTP_image_System too.
   Back them up to `inst_libs/backup_before_<reason>/` with a README before changing them.
+
+---
+
+## P0 - v3.3: pump power Record - IMPLEMENTED, lab check open
+
+Recorded and implemented 2026-09-29 (see `OPTP_dev_log.md`, headless test `tests/test_pump_power.py`
+48/48; the power meter part also ran against the real PM100D with a fake flip mount). On the lab PC:
+- [ ] 2-point temperature scan with AutoBlock + Record: each data file has `pump_power_W`, and it
+  matches the pump power shown in the box while the flip mount is on Block.
+- [ ] Both beam orders (`Pass -> Soak`, `Soak -> Pass`): the power is read while blocked, then the beam passes.
+- [ ] Settle time: after a manual Block, the reading has stopped rising before Record takes it (15 s
+  default for the S302C, time constant 3.8 s); adjust `pmSettle` if not.
+- [ ] Zero with the flip mount on Pass: the offset (about -0.21 mW at the moment) goes to ~0.
+- [ ] Wavelength: the PM config value (default 800 nm) is sent to the meter on every connect; check the
+  meter's display shows it, and change the default in the .ui if the pump is not at 800 nm.
+
+---
+
+## P0 - v3.2: temperature drift shifts the pump-THz delay (stage1 / stage2 coupling) - IMPLEMENTED, lab check open
+
+Recorded 2026-09-28; implemented the same day in v3.2 (see `OPTP_dev_log.md`, headless test
+`tests/test_drift_comp.py` 25/25). Still to do on the lab PC:
+- [ ] 1D_THz temperature scan (2-3 points): ScanLog shows one `Peak search` line per point with a
+  plausible delta; the 1D response onset / peak stays at the same position RELATIVE to each file's
+  iPos2 (that is the direct proof that 1:1 Reverse compensation is right).
+- [ ] 2D_THz temperature scan: the TDS window follows the peak (peak at the same index in every file).
+- [ ] Both beam orders with AutoBlock (`Pass -> Soak`, `Soak -> Pass`): beam state matches.
+- [ ] Round-1 window: with a real drift the maximum must not sit on the window edge; widen R1 if it does.
+
+Design record (as implemented):
+
+**Problem.** Stage1 (THz TDS delay) and stage2 (pump delay) are coupled: in this setup, when the
+stage1 THz peak position decreases, the stage2 position of the same pump-THz delay increases
+(stage2 is mounted in reverse). A temperature change that moves the stage1 peak therefore also
+moves the pump-THz time zero on stage2, but the code only ever corrects stage1:
+- `1D_THz` + temperature: stage1 is re-peaked before every stage2 sweep (`iPos1`,
+  `stage1_pos_sequence[0]`, `dynamic_THz_peak_pos`), but `stage2_pos_sequence` is built once per
+  file from the UI `iPos2` and never shifted, so every temperature's 1D trace is offset in pump
+  delay by the stage1 drift. Recoverable afterwards only by realigning the traces.
+- `2D_THz` + temperature: no peak search at all (gate is `scan_mode == '1D_THz'`). The stage1 window
+  and every stage2 point stay where they were set, so each temperature samples different pump-THz
+  delays. With sparse stage2 points this cannot be interpolated back.
+- Size of the effect: the peak search was designed for drifts up to ~90 um. With double-pass
+  stages 5 um = 33 fs; the measured response (2026-09-28, 12h55m29s) has FWHM ~42 um and changes by
+  ~11-13 % of the peak per 5 um around +0.3 ps. A few um of uncompensated drift already fakes a
+  "temperature dependence" of that size.
+
+**Physics (confirmed by the user, 2026-09-28):** the drift comes from thermal expansion of the
+sample holder / sample, which changes the collinear THz and pump paths together; the probe (gate)
+path is stable. So the drift itself does not change the pump-THz delay at the sample. What does
+change it is the stage1 correction: stage1 is coupled to the pump-THz delay, so moving stage1 by
+delta to re-peak must be undone by moving stage2 by s * delta (s = -1, stage2 mounted in reverse).
+1:1 in mm holds as long as both delay lines have the same number of passes.
+
+**Agreed plan (v3.2, first version):**
+- Peak search tab (`peakSearchTab`): `TDS Ppos` (editable), Round1 step + +/- points, Round2 step +
+  +/- points, stage2 direction button (Forward / Reverse, default Reverse); tooltips on all.
+  `TDS Ppos` is set by hand (from the manual TDS optimisation) and by the peak search only - no
+  automatic write from THz_Scan.
+- One rule for EVERY mode whenever the scan is a temperature scan (ScanT + iTC connected + points):
+  at every temperature point, with the beam passing (AutoBlock) and all stages at the scan start
+  configuration, search around `TDS Ppos`; delta = new_peak - `TDS Ppos`; `iPos1 += delta`,
+  `iPos2 += s * delta`, `TDS Ppos = new_peak`; then build the sequences and the data file from these
+  values. In 1D_THz / POL_2D `iPos1` is the peak itself, in THz_Scan / 2D_THz it is the window start -
+  the same formula covers all modes.
+- Stored `iPos1` / `iPos2` are therefore already the compensated values: no offset dataset. The
+  per-polarization in-loop search is removed (confirmed by the user); `dynamic_THz_peak_pos` goes
+  with it unless a processing script needs it.
+- Start of a temperature scan: refuse when `TDS Ppos` is not set; otherwise a confirmation dialog
+  shows Ppos / iPos1 / iPos2 / direction / search parameters and the scan starts only on Yes.
+- A failed search (no finite reading, or the Round1 maximum on the window edge) keeps the previous
+  values, the measurement continues, and ScanLog gets a warning (confirmed by the user).
+- Beam timing is a toggle on the Peak search tab: `Pass -> Soak` (default; the soak also absorbs the
+  pump heating) or `Soak -> Pass` (for light-sensitive samples). A local flag makes sure the beam
+  is passed exactly once before the search on every path (incl. no stabilisation / no soak).
+- `Drift comp.` checkbox on the Peak search tab, default on; off = no search, no dialog, no
+  compensation (for scans without Stage1 / Lock-in1, or weak signal).
 
 ---
 
@@ -107,6 +184,11 @@ They are not suspected broken; they have simply never been run for real.
 
 ## P2 - Known code issues, deliberately not fixed
 
+- [ ] **Unchanged axes are re-commanded at every data point (OPTP v3.2, MO v2.4, THz v1.3).**
+  `move_active_stages()` calls `move_to()` on every active axis for every point, also when that axis
+  does not move (e.g. stage2 during a TDS, the rotaries during a sweep). OPTP image already skips an
+  axis within 1e-4 mm of its target. Measure the time per point on the hardware; if it matters, port
+  the image system's position check (about 5 lines per axis).
 - [ ] **`set_heater_limit()` pumps the Qt event loop while holding the instrument lock.** It calls
   `qwait_time(50)` *inside* its `io_lock` block. `io_lock` is an `RLock`, so a UI action during
   that window re-enters on the same thread without blocking and can interleave VISA traffic.
@@ -123,6 +205,11 @@ They are not suspected broken; they have simply never been run for real.
   bracketing / prominence / amplitude-regression criteria ("option B") were designed but deferred
   until live running shows whether they are needed. Revisit after the P1 peak-tracking run.
   (~line 150)
+- [ ] **`tests/test_scanlog.py` does not finish on v3.2 / v3.3.** Written for v3.1 (17/17 there). Its
+  temperature part stops at the modal 'Drift comp.' confirmation (on by default since v3.2), which
+  never closes headless, and 'one peak-tracking summary line' fails (v3.2 log lines differ). Untick
+  `driftComp` in its `make_sys()` (as `test_pump_power.py` does), update that check, and point it at
+  the current version.
 
 ---
 

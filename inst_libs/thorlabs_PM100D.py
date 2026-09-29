@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from ctypes import WinDLL, byref, c_bool, c_double, c_uint32, create_string_buffer
-from pathlib import Path
 from typing import Optional, Literal, Tuple, Dict
 import time
 
-TLPM_DLL_PATH = Path(r"C:\Program Files\IVI Foundation\VISA\Win64\Bin\TLPM_64.dll")
-TLPM_BUFFER_SIZE = 1024
-VI_ERROR_RSRC_BUSY = -1073807343
+import pyvisa
+
+# Thorlabs vendor ID + PM100D product ID; USB only, so listing does not probe the serial/GPIB ports.
+PM100D_RESOURCE_QUERY = "USB?*::0x1313::0x8078::?*::INSTR"
 
 MeasurementMode = Literal[
     "POW", "CURR", "VOLT", "ENER", "FREQ", "PDEN", "EDEN", "RES", "TEMP"
@@ -25,6 +24,8 @@ class PM100DError(Exception):
 class PM100D:
     """
     Thorlabs PM100D power/energy meter (SCPI over VISA).
+    The meter must run on its NI-VISA driver (Thorlabs Power Meter Driver Switcher);
+    on the TLPM driver pyvisa does not see it.
 
     Example:
         pm = PM100D("USB0::0x1313::0x8078::P1234567::INSTR")
@@ -72,78 +73,67 @@ class PM100D:
         self.query_delay_s = query_delay_s
         self.retry_count = retry_count
         self.retry_delay_s = retry_delay_s
-        self._tlpm = self._load_tlpm()
-        self._session: Optional[c_uint32] = None
-
-    @staticmethod
-    def _load_tlpm():
-        if not TLPM_DLL_PATH.is_file():
-            raise PM100DError(
-                f"Thorlabs TLPM driver was not found at {TLPM_DLL_PATH}."
-            )
-        return WinDLL(str(TLPM_DLL_PATH))
-
-    @staticmethod
-    def _check_status(status: int, operation: str) -> None:
-        if status == VI_ERROR_RSRC_BUSY:
-            raise PM100DError(
-                "PM100D is busy. Close any Thorlabs power-meter software, NI MAX, "
-                "or other process using the device, then reconnect its USB cable."
-            )
-        if status < 0:
-            raise PM100DError(f"{operation} failed with TLPM status {status}.")
-
-    @classmethod
-    def _resource_manager(cls):
-        tlpm = cls._load_tlpm()
-        session = c_uint32()
-        # TLPM uses an empty resource name to create a resource-manager session.
-        tlpm.TLPM_init(b"", c_bool(False), c_bool(False), byref(session))
-        return tlpm, session
+        self._rm: Optional[pyvisa.ResourceManager] = None
+        self._inst: Optional[pyvisa.resources.MessageBasedResource] = None
 
     # ---------- discovery ----------
     @classmethod
     def list_resources(cls) -> Tuple[str, ...]:
-        tlpm, session = cls._resource_manager()
-        count = c_uint32()
-        try:
-            cls._check_status(tlpm.TLPM_findRsrc(session, byref(count)), "TLPM_findRsrc")
-            resources = []
-            for index in range(count.value):
-                resource = create_string_buffer(TLPM_BUFFER_SIZE)
-                cls._check_status(
-                    tlpm.TLPM_getRsrcName(session, index, resource),
-                    "TLPM_getRsrcName",
-                )
-                resources.append(resource.value.decode())
-            return tuple(resources)
-        finally:
-            if session.value:
-                tlpm.TLPM_close(session)
+        return tuple(pyvisa.ResourceManager().list_resources(PM100D_RESOURCE_QUERY))
 
     @classmethod
     def list_resources_with_idn(
         cls, timeout_ms: int = 300
     ) -> Tuple[Tuple[str, str], ...]:
-        del timeout_ms
-        return tuple((resource, "Thorlabs PM100D") for resource in cls.list_resources())
+        rm = pyvisa.ResourceManager()
+        found = []
+        for resource in cls.list_resources():
+            try:
+                inst = rm.open_resource(resource, open_timeout=timeout_ms)
+                try:
+                    inst.timeout = timeout_ms
+                    inst.read_termination = "\n"
+                    inst.write_termination = "\n"
+                    found.append((resource, inst.query("*IDN?").strip()))
+                finally:
+                    inst.close()
+            except pyvisa.VisaIOError:
+                found.append((resource, "<no response>"))
+        return tuple(found)
 
     # ---------- connection ----------
     def open(self) -> str:
-        if self._session is not None:
+        if self._inst is not None:
             return ""
-        session = c_uint32()
-        status = self._tlpm.TLPM_init(
-            self.resource.encode(), c_bool(True), c_bool(False), byref(session)
-        )
-        self._check_status(status, f"TLPM_init({self.resource})")
-        self._session = session
+        self._rm = pyvisa.ResourceManager()
+        try:
+            self._inst = self._rm.open_resource(self.resource)
+        except pyvisa.VisaIOError as exc:
+            self._rm = None
+            if exc.error_code == pyvisa.constants.StatusCode.error_resource_busy:
+                raise PM100DError(
+                    "PM100D is busy. Close any Thorlabs power-meter software, NI MAX, "
+                    "or other process using the device, then reconnect its USB cable."
+                ) from exc
+            raise PM100DError(
+                f"Opening {self.resource} failed: {exc}. If the meter runs on its TLPM driver, "
+                "switch it to NI-VISA with the Thorlabs Power Meter Driver Switcher."
+            ) from exc
+        self._inst.timeout = self.timeout_ms
+        self._inst.query_delay = self.query_delay_s
+        self._inst.read_termination = "\n"
+        self._inst.write_termination = "\n"
+        # No device clear here: on this meter the first query after viClear() times out.
         return ""
 
     def close(self) -> None:
-        if self._session is not None:
-            self._tlpm.TLPM_close(self._session)
-            self._session = None
+        """Close this instrument's VISA session. The shared ResourceManager stays open (see SR830.close)."""
+        try:
+            if self._inst is not None:
+                self._inst.close()
+        finally:
+            self._inst = None
+            self._rm = None
 
     def __enter__(self) -> "PM100D":
         self.open()
@@ -158,14 +148,21 @@ class PM100D:
 
     # ---------- low-level ----------
     def write(self, cmd: str) -> None:
-        raise PM100DError(
-            "Raw SCPI writes are not supported by the TLPM driver transport."
-        )
+        if self._inst is None:
+            raise PM100DError("Instrument not open. Call open() or use context manager.")
+        self._inst.write(cmd)
 
     def query(self, cmd: str) -> str:
-        raise PM100DError(
-            "Raw SCPI queries are not supported by the TLPM driver transport."
-        )
+        if self._inst is None:
+            raise PM100DError("Instrument not open. Call open() or use context manager.")
+        for attempt in range(self.retry_count + 1):
+            try:
+                return self._inst.query(cmd).strip()
+            except pyvisa.VisaIOError:
+                if attempt == self.retry_count:
+                    raise
+                # retried without viClear(): after a clear the next query times out on this meter
+                time.sleep(self.retry_delay_s)
 
     def _query_float(self, cmd: str) -> float:
         return float(self.query(cmd))
@@ -185,21 +182,7 @@ class PM100D:
 
     # ---------- common commands ----------
     def idn(self) -> str:
-        if self._session is None:
-            raise PM100DError("Instrument not open. Call open() or use context manager.")
-        manufacturer = create_string_buffer(TLPM_BUFFER_SIZE)
-        device = create_string_buffer(TLPM_BUFFER_SIZE)
-        serial = create_string_buffer(TLPM_BUFFER_SIZE)
-        firmware = create_string_buffer(TLPM_BUFFER_SIZE)
-        self._check_status(
-            self._tlpm.TLPM_identificationQuery(
-                self._session, manufacturer, device, serial, firmware
-            ),
-            "TLPM_identificationQuery",
-        )
-        return ",".join(
-            value.value.decode() for value in (manufacturer, device, serial, firmware)
-        )
+        return self.query("*IDN?")
 
     def reset(self) -> None:
         self.write("*RST")
@@ -274,10 +257,10 @@ class PM100D:
     def set_line_frequency(self, freq_hz: int) -> None:
         if freq_hz not in (50, 60):
             raise ValueError("freq_hz must be 50 or 60.")
-        self.write(f"SYST:LFREQ {freq_hz}")
+        self.write(f"SYST:LFR {freq_hz}")
 
     def get_line_frequency(self) -> int:
-        return int(self.query("SYST:LFREQ?"))
+        return int(self.query("SYST:LFR?"))
 
     def get_sensor_idn(self) -> Dict[str, str]:
         resp = self.query("SYST:SENS:IDN?")
@@ -348,53 +331,41 @@ class PM100D:
         return self._query_float("SENS:CORR:BEAM?")
 
     def set_wavelength_nm(self, wavelength_nm: float) -> None:
-        if self._session is None:
-            raise PM100DError("Instrument not open. Call open() or use context manager.")
-        self._check_status(
-            self._tlpm.TLPM_setWavelength(self._session, c_double(wavelength_nm)),
-            "TLPM_setWavelength",
-        )
+        self.write(f"SENS:CORR:WAV {wavelength_nm}")
 
     def get_wavelength_nm(self) -> float:
-        if self._session is None:
-            raise PM100DError("Instrument not open. Call open() or use context manager.")
-        wavelength = c_double()
-        self._check_status(
-            self._tlpm.TLPM_getWavelength(self._session, 0, byref(wavelength)),
-            "TLPM_getWavelength",
-        )
-        return wavelength.value
+        return self._query_float("SENS:CORR:WAV?")
 
     def zero_initiate(self) -> None:
-        self.write("SENS:ZERO:INIT")
+        self.write("SENS:CORR:COLL:ZERO:INIT")
 
     def zero_abort(self) -> None:
-        self.write("SENS:ZERO:ABOR")
+        self.write("SENS:CORR:COLL:ZERO:ABOR")
 
     def get_zero_state(self) -> bool:
-        return self._query_bool("SENS:ZERO:STAT?")
+        return self._query_bool("SENS:CORR:COLL:ZERO:STAT?")
 
     def get_zero_magnitude(self) -> float:
-        return self._query_float("SENS:ZERO:MAGN?")
+        return self._query_float("SENS:CORR:COLL:ZERO:MAGN?")
 
     # ---------- response factors ----------
     def set_photodiode_response_aw(self, response_aw: float) -> None:
-        self.write(f"SENS:POW:PDIO:RESP {response_aw}")
+        self.write(f"SENS:CORR:POW:PDI:RESP {response_aw}")
 
     def get_photodiode_response_aw(self) -> float:
-        return self._query_float("SENS:POW:PDIO:RESP?")
+        return self._query_float("SENS:CORR:POW:PDI:RESP?")
 
     def set_thermopile_response_vw(self, response_vw: float) -> None:
-        self.write(f"SENS:POW:THER:RESP {response_vw}")
+        self.write(f"SENS:CORR:POW:THER:RESP {response_vw}")
 
     def get_thermopile_response_vw(self) -> float:
-        return self._query_float("SENS:POW:THER:RESP?")
+        return self._query_float("SENS:CORR:POW:THER:RESP?")
 
     def set_pyro_response_vj(self, response_vj: float) -> None:
-        self.write(f"SENS:ENER:PYRO:RESP {response_vj}")
+        self.write(f"SENS:CORR:ENER:PYRO:RESP {response_vj}")
 
     def get_pyro_response_vj(self) -> float:
-        return self._query_float("SENS:ENER:PYRO:RESP?")
+        return self._query_float("SENS:CORR:ENER:PYRO:RESP?")
 
     # ---------- ranges / units / delta ----------
     def set_power_unit(self, unit: PowerUnit) -> None:
@@ -452,10 +423,10 @@ class PM100D:
         return self._query_float(f"SENS:{mode}:REF?")
 
     def set_delta_state(self, mode: DeltaMode, on: bool) -> None:
-        self.write(f"SENS:{mode}:STAT {1 if on else 0}")
+        self.write(f"SENS:{mode}:REF:STAT {1 if on else 0}")
 
     def get_delta_state(self, mode: DeltaMode) -> bool:
-        return self._query_bool(f"SENS:{mode}:STAT?")
+        return self._query_bool(f"SENS:{mode}:REF:STAT?")
 
     def get_frequency_range(self) -> Tuple[float, float]:
         low = self._query_float("SENS:FREQ:RANG:LOW?")
@@ -470,10 +441,10 @@ class PM100D:
 
     # ---------- input ----------
     def set_photodiode_lowpass(self, on: bool) -> None:
-        self.write(f"INP:PDIO:FILT:LPAS {1 if on else 0}")
+        self.write(f"INP:PDI:FILT:LPAS:STAT {1 if on else 0}")
 
     def get_photodiode_lowpass(self) -> bool:
-        return self._query_bool("INP:PDIO:FILT:LPAS?")
+        return self._query_bool("INP:PDI:FILT:LPAS:STAT?")
 
     def set_thermopile_accelerator(self, on: bool) -> None:
         self.write(f"INP:THER:ACC:STAT {1 if on else 0}")
@@ -500,17 +471,19 @@ class PM100D:
         return self.query("INP:ADAP:TYPE?")
 
     # ---------- display ----------
-    def set_display_brightness(self, value: int) -> None:
+    def set_display_brightness(self, value: float) -> None:
+        """value: 0 .. 1"""
         self.write(f"DISP:BRIG {value}")
 
-    def get_display_brightness(self) -> int:
-        return int(self.query("DISP:BRIG?"))
+    def get_display_brightness(self) -> float:
+        return self._query_float("DISP:BRIG?")
 
-    def set_display_contrast(self, value: int) -> None:
+    def set_display_contrast(self, value: float) -> None:
+        """value: 0 .. 1"""
         self.write(f"DISP:CONT {value}")
 
-    def get_display_contrast(self) -> int:
-        return int(self.query("DISP:CONT?"))
+    def get_display_contrast(self) -> float:
+        return self._query_float("DISP:CONT?")
 
     # ---------- measurement ----------
     def configure(self, mode: MeasurementMode) -> None:
@@ -535,14 +508,7 @@ class PM100D:
         return self._query_float(self._MEAS_CMDS[mode])
 
     def measure_power(self) -> float:
-        if self._session is None:
-            raise PM100DError("Instrument not open. Call open() or use context manager.")
-        power = c_double()
-        self._check_status(
-            self._tlpm.TLPM_measPower(self._session, byref(power)),
-            "TLPM_measPower",
-        )
-        return power.value
+        return self.measure("POW")
 
     def measure_energy(self) -> float:
         return self.measure("ENER")

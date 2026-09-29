@@ -2,7 +2,7 @@ from thorlabs_PM100D import PM100D
 
 resources = PM100D.list_resources_with_idn()
 if not resources:
-    raise RuntimeError("No Thorlabs PM100D was found by the TLPM driver.")
+    raise RuntimeError("No Thorlabs PM100D was found over VISA (is it switched to its NI-VISA driver?).")
 
 for index, (resource, identity) in enumerate(resources):
     print(index, resource, identity)
