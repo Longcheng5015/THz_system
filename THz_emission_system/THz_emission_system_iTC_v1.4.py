@@ -993,23 +993,53 @@ class moSys:
         self.ui.pmWavelength.setRange(round(wl_min), round(wl_max))  # clamps the box value into the sensor's limits
         pm.set_wavelength_nm(self.ui.pmWavelength.value())
         self.ui.pmWavelength.setValue(round(pm.get_wavelength_nm()))  # what the meter accepted
+        self.show_pm_ranges(pm)
 
-        # The ranges are decades from the sensor's lowest to its highest (S302C: 3.446 mW ... 3.446 W);
-        # the meter moves any other value up to the next range.
-        lowest = float(pm.query("SENS:POW:RANG:UPP? MIN"))
-        highest = float(pm.query("SENS:POW:RANG:UPP? MAX"))
+    def probe_pm_ranges(self, pm) -> list:
+        """The meter's real power ranges (W), lowest first, walked on the meter and its range setting restored.
+
+        They depend on the sensor and the wavelength and are not exact decades (S302C at 800 nm: 3.695 mW,
+        34.99 mW, 347.9 mW, 3.477 W), so they cannot be derived from the lowest one: from the lowest range,
+        ask for just above the current range until the meter stops moving up.
+        """
+        auto = pm.get_power_auto_range()
+        current = pm.get_power_range_upper()
         ranges = []
-        upper = lowest
-        while upper <= highest * 1.001:
-            ranges.append(upper)
-            upper *= 10
+        try:
+            pm.set_power_auto_range(False)
+            pm.write("SENS:POW:RANG:UPP MIN")
+            upper = pm.get_power_range_upper()
+            for _ in range(12):
+                ranges.append(upper)
+                pm.set_power_range_upper(upper * 1.01)  # above the top range the meter refuses and keeps it
+                following = pm.get_power_range_upper()
+                if following <= upper * 1.0001:
+                    break
+                upper = following
+        finally:
+            if auto:
+                pm.set_power_auto_range(True)
+            else:
+                pm.set_power_range_upper(current * 0.999)  # see set_pm_range: the read-back value is rounded
+            for _ in range(20):  # clear the 'Data out of range' left by the step above the top range
+                if pm.get_error()[0] == 0:
+                    break
+        return ranges
+
+    def show_pm_ranges(self, pm):
+        """Offer the meter's real ranges at the current wavelength in the Power range box and show its setting."""
+        try:
+            ranges = self.probe_pm_ranges(pm)
+        except Exception as e:  # the meter stays usable on Auto; no reason to refuse the connection
+            ranges = []
+            print(f"Warning: could not read the power meter ranges ({type(e).__name__}: {e}); only Auto is offered.")
         box = self.ui.pmRange
         box.blockSignals(True)  # only showing the meter's state; nothing is sent back
         box.clear()
         box.addItem("Auto", None)
         for r in ranges:
             box.addItem(f"{r * 1e3:.4g} mW" if r < 1 else f"{r:.4g} W", r)
-        if pm.get_power_auto_range():
+        if not ranges or pm.get_power_auto_range():
             box.setCurrentIndex(0)
         else:
             current = pm.get_power_range_upper()
@@ -1027,7 +1057,9 @@ class moSys:
                     self.powermeter.set_power_auto_range(True)
                 else:
                     self.powermeter.set_power_auto_range(False)
-                    self.powermeter.set_power_range_upper(upper)
+                    # The meter reports a range rounded to 7 digits, which can lie just above the range itself and
+                    # would select the next one up; 0.1 % below it is inside this range and far above the one below.
+                    self.powermeter.set_power_range_upper(upper * 0.999)
                 auto = self.powermeter.get_power_auto_range()
                 actual = self.powermeter.get_power_range_upper()
             except Exception as e:
@@ -1036,13 +1068,14 @@ class moSys:
         print("Power meter range: Auto." if auto else f"Power meter range fixed at {actual * 1e3:.4g} mW.")
 
     def set_pm_wavelength(self):
-        """Send the wavelength box to the meter and show the value it accepted."""
+        """Send the wavelength box to the meter, show the value it accepted and the ranges at that wavelength."""
         if self.powermeter is None:
             return
         with self.pm_lock:
             try:
                 self.powermeter.set_wavelength_nm(self.ui.pmWavelength.value())
                 accepted = self.powermeter.get_wavelength_nm()
+                self.show_pm_ranges(self.powermeter)  # the ranges move with the wavelength
             except Exception as e:
                 print(f"✗ Setting the power meter wavelength failed: {e}")
                 return

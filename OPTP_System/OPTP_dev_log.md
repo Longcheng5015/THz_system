@@ -545,6 +545,16 @@ This document records the overall development and debugging history for the OPTP
   - Flip Mount / Power Meter stay aligned with the Lock-in / Stage rows at both window sizes (1920: 22..479 / 485..942; 1661: 22..436 / 442..855); at 1920 the left panel width is unchanged,
   - `tests/test_pump_power.py` 64/64.
 
+### v3.3 - Power range: the meter's real ranges (fix); power meter test for all systems
+- Date: 2026-09-29
+- Main change: the Power range list is read from the meter itself, range by range, when it connects and after every wavelength change, and a fixed range is requested 0.1 % below its upper value. Found while porting the power meter to MO v2.5 / OPTP image v1.6 / THz v1.4, which carry the same code.
+- Details:
+  - bug: the list was built as decades of `SENS:POW:RANG:UPP? MIN`. The ranges are not decades and move with the wavelength: at 800 nm the list read 3.695 / 36.95 / 369.5 mW, the meter's ranges are 3.695 mW, 34.99 mW, 347.9 mW, 3.477 W, so choosing "36.95 mW" put the meter on 347.9 mW. Measured: 800 nm 3.695 mW, 34.99 mW, 347.9 mW, 3.477 W; 1030 nm 3.752 mW, 35.53 mW, 353.3 mW, 3.531 W. The 525 nm ranges also differed from the 3.446 mW .. 3.446 W logged earlier today; by then the meter's reading had gone from -0.21 to about -0.005 mW, so it had apparently been zeroed,
+  - `probe_pm_ranges()`: auto range off, `SENS:POW:RANG:UPP MIN`, then 1 % above the current range until the meter stops moving up (the step above the top range leaves error -222, which is cleared); the meter's own setting, auto or its fixed range, is restored. `show_pm_ranges()` fills the box and is called by `load_pm_settings()` and `set_pm_wavelength()`. If the walk fails, the box offers only Auto and the meter still connects,
+  - `set_pm_range()` and the restore ask for 0.1 % below the range's upper value: the meter reports a range rounded to 7 digits, which can lie a hair above the range and then selects the next one up (seen on the meter: restoring a read-back range after a wavelength change landed on 353.3 mW instead of 35.53 mW),
+  - `pmRange` tooltip (and its label): the ranges are read from the meter and shift with the wavelength, S302C example at 800 nm,
+  - `tests/test_pump_power.py` now takes a system argument (`optp` default, `mo`, `img`, `thz`), keeps QSettings in a temp ini file (an earlier run had created empty `HKCU\Software\MO_System` / `OPTP_image_System` keys; both removed), and its FakePM has non-decade, wavelength-dependent ranges with rounded read-back like the meter: 65/65. `tests/test_drift_comp.py` 25/25 on v3.2 and on v3.3. Real meter through the v3.3 code: list at 800 nm = the walked ranges, 34.99 mW -> meter on 0.03498537 W, 1030 nm -> list read again and the meter stays on the same range (0.03552721 W), Auto -> auto; meter left on 525 nm / auto.
+
 ## Summary
 The overall objective of this debug/development branch is to make the OPTP scan workflow more stable under temperature variation and to improve reliability during real experimental runs.
 

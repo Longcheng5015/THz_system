@@ -7665,7 +7665,7 @@ QTabBar::tab:selected {
                    </sizepolicy>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Power range&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Auto: the meter picks the range itself (recommended).&lt;/p&gt;&lt;p&gt;A fixed range stops the meter from switching ranges; a power above it reads as over-range. The ranges come from the sensor when the meter connects; the S302C has 3.446 mW, 34.46 mW, 344.6 mW and 3.446 W.&lt;/p&gt;&lt;p&gt;Applied to the meter at once.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Power range&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Auto: the meter picks the range itself (recommended).&lt;/p&gt;&lt;p&gt;A fixed range stops the meter from switching ranges; a power above it reads as over-range. The ranges are read from the meter when it connects and whenever the wavelength changes: they depend on the sensor and shift slightly with the wavelength (S302C at 800 nm: 3.695 mW, 34.99 mW, 347.9 mW, 3.477 W).&lt;/p&gt;&lt;p&gt;Applied to the meter at once.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="text">
                    <string>Power range</string>
@@ -7690,7 +7690,7 @@ QTabBar::tab:selected {
                    </size>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Power range&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Auto: the meter picks the range itself (recommended).&lt;/p&gt;&lt;p&gt;A fixed range stops the meter from switching ranges; a power above it reads as over-range. The ranges come from the sensor when the meter connects; the S302C has 3.446 mW, 34.46 mW, 344.6 mW and 3.446 W.&lt;/p&gt;&lt;p&gt;Applied to the meter at once.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Power range&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Auto: the meter picks the range itself (recommended).&lt;/p&gt;&lt;p&gt;A fixed range stops the meter from switching ranges; a power above it reads as over-range. The ranges are read from the meter when it connects and whenever the wavelength changes: they depend on the sensor and shift slightly with the wavelength (S302C at 800 nm: 3.695 mW, 34.99 mW, 347.9 mW, 3.477 W).&lt;/p&gt;&lt;p&gt;Applied to the meter at once.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <item>
                    <property name="text">

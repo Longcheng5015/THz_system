@@ -29,6 +29,10 @@ Recorded and implemented 2026-09-29 (see `OPTP_dev_log.md`, headless test `tests
 - [ ] Zero with the flip mount on Pass: the offset (about -0.21 mW at the moment) goes to ~0.
 - [ ] Wavelength: the PM config value (default 800 nm) is sent to the meter on every connect; check the
   meter's display shows it, and change the default in the .ui if the pump is not at 800 nm.
+- [ ] Power range: pick a fixed range, change the wavelength, and check the meter's own display shows
+  the same range as the box.
+- [ ] The same power meter features are in MO v2.5, OPTP image v1.6 and THz v1.4 (identical code and
+  widgets, tested headless and against the meter): run the checks above there too.
 
 ---
 

@@ -81,22 +81,33 @@ class FakeMount:
 
 
 class FakePM:
-    """Readings cycle 10, 11, 12 mW; each read remembers where the flip mount was. Ranges as the S302C."""
-    RANGES = (0.003445766, 0.03445766, 0.3445766, 3.445766)
-    LIMITS = {"SENS:CORR:WAV? MIN": "1.850000E+02", "SENS:CORR:WAV? MAX": "2.000000E+04",
-              "SENS:POW:RANG:UPP? MIN": "3.445766E-03", "SENS:POW:RANG:UPP? MAX": "3.445766E+00"}
-    def __init__(self, mount, fail=False, auto=True, upper=RANGES[0]):
+    """Readings cycle 10, 11, 12 mW; each read remembers where the flip mount was.
+    Ranges as measured on the S302C: they move with the wavelength and are not exact decades."""
+    RANGES = {800: (0.00369471, 0.0349854, 0.347892, 3.47696),
+              1030: (0.00375193, 0.0355272, 0.35328, 3.53081)}
+    LIMITS = {"SENS:CORR:WAV? MIN": "1.850000E+02", "SENS:CORR:WAV? MAX": "2.000000E+04"}
+    def __init__(self, mount, fail=False, auto=True, range_index=0):
         self.mount, self.fail = mount, fail
         self.reads = []  # (time, mount position, value)
         self.wavelength = 800.0
         self.zero_calls, self.zero_until = 0, 0.0
-        self.auto, self.upper, self.range_writes = auto, upper, 0
+        self.auto, self.idx, self.errors = auto, range_index, []
+    def ranges(self): return self.RANGES.get(int(self.wavelength), self.RANGES[800])
     def query(self, cmd): return self.LIMITS[cmd]
+    def write(self, cmd):
+        assert cmd == "SENS:POW:RANG:UPP MIN", cmd
+        self.idx = 0
+    def get_error(self): return self.errors.pop(0) if self.errors else (0, "No error")
     def get_power_auto_range(self): return self.auto
-    def set_power_auto_range(self, on): self.auto = bool(on); self.range_writes += 1
-    def get_power_range_upper(self): return self.upper
-    def set_power_range_upper(self, w):  # the meter moves any value up to the next range
-        self.upper = min(r for r in self.RANGES if r >= w * 0.999); self.range_writes += 1
+    def set_power_auto_range(self, on): self.auto = bool(on)
+    def get_power_range_upper(self): return self.ranges()[self.idx]
+    def set_power_range_upper(self, w):  # the meter moves any value up to the next range; above the top it refuses
+        # like the real meter, the reported value is rounded and can lie a hair above the range itself
+        fits = [i for i, r in enumerate(self.ranges()) if r * (1 - 1e-8) >= w]
+        if fits:
+            self.idx = fits[0]
+        else:
+            self.errors.append((-222, "Data out of range"))
     def measure_power(self):
         if self.fail:
             raise RuntimeError("fake PM read failure")
@@ -327,21 +338,30 @@ pm.wavelength = 525.0  # the meter was left on another wavelength
 ui.pmWavelength.setValue(800)
 m.load_pm_settings(pm)
 items = [ui.pmRange.itemText(i) for i in range(ui.pmRange.count())]
-check(f"range choices from the sensor {items}", items == ["Auto", "3.446 mW", "34.46 mW", "344.6 mW", "3.446 W"])
-check("meter on auto -> Auto shown, nothing written back", ui.pmRange.currentIndex() == 0 and pm.range_writes == 0)
+check(f"range choices are the meter's real ranges at 800 nm {items}",
+      items == ["Auto", "3.695 mW", "34.99 mW", "347.9 mW", "3.477 W"])
+check("meter on auto -> Auto shown; the meter is back on auto and its error queue is empty after the walk",
+      ui.pmRange.currentIndex() == 0 and pm.auto and not pm.errors)
 check("wavelength box limited to the sensor (185 .. 20000 nm); its 800 nm is sent to the meter on connect",
       (ui.pmWavelength.minimum(), ui.pmWavelength.maximum(), ui.pmWavelength.value()) == (185, 20000, 800)
       and pm.wavelength == 800)
 m.powermeter = pm
 ui.pmRange.setCurrentIndex(2)
-check("choosing 34.46 mW fixes that range on the meter", not pm.auto and pm.upper == FakePM.RANGES[1])
+check("choosing 34.99 mW fixes exactly that range (not the next one up)",
+      not pm.auto and pm.get_power_range_upper() == FakePM.RANGES[800][1])
+ui.pmWavelength.setValue(1030); m.set_pm_wavelength()
+items = [ui.pmRange.itemText(i) for i in range(ui.pmRange.count())]
+check(f"new wavelength -> ranges read again {items}, the fixed range kept",
+      items == ["Auto", "3.752 mW", "35.53 mW", "353.3 mW", "3.531 W"] and ui.pmRange.currentIndex() == 2
+      and not pm.auto and pm.idx == 1 and not pm.errors)
 ui.pmRange.setCurrentIndex(0)
 check("choosing Auto switches the meter back to auto range", pm.auto)
-pm2 = FakePM(FakeMount(2), auto=False, upper=FakePM.RANGES[2])
+pm2 = FakePM(FakeMount(2), auto=False, range_index=2)
 m.powermeter = None
+ui.pmWavelength.setValue(800)
 m.load_pm_settings(pm2)
-check("meter on a fixed range -> that range shown, nothing written back",
-      ui.pmRange.currentText() == "344.6 mW" and pm2.range_writes == 0 and not pm2.auto)
+check("meter on a fixed range -> that range shown and restored on the meter after the walk",
+      ui.pmRange.currentText() == "347.9 mW" and not pm2.auto and pm2.idx == 2 and not pm2.errors)
 m.powermeter = None
 
 # 12. PM_realDisp: live display only while pressed and connected; usable during a scan
