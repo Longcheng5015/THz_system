@@ -350,7 +350,7 @@ QProgressBar::chunk {
                               <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                              </property>
                              <property name="minimum">
-                              <double>75.000000000000000</double>
+                              <double>2.000000000000000</double>
                              </property>
                              <property name="maximum">
                               <double>500.000000000000000</double>
