@@ -4,7 +4,7 @@ Companion to `OPTP_dev_log.md`. The dev log records **what was changed**; this f
 **what is still open**. Every item here should either get done or get an explicit decision to
 drop it - do not let items rot silently.
 
-Last updated: 2026-09-29 (after v3.3)
+Last updated: 2026-10-04 (multiline Lock-in tips and new-version control sync)
 
 **Working rules for this folder**
 - All `.py` and `.ui` files here are **CRLF throughout**. `sed -i` under MSYS/Git-Bash silently
@@ -14,6 +14,53 @@ Last updated: 2026-09-29 (after v3.3)
 - No feature is complete until `OPTP_dev_log.md` has an entry for it (see `CLAUDE.md`).
 - Shared libraries live in `inst_libs/` and are used by MO_System and OPTP_image_System too.
   Back them up to `inst_libs/backup_before_<reason>/` with a README before changing them.
+
+---
+
+## v3.6 - Lock-in X Auto Zero and Phase - IMPLEMENTED, lab check open
+
+The same Lock-in controls are now present in MO v2.6, OPTP Imaging v1.7 and THz Emission v1.5.
+The three previous Python/UI versions were preserved. Run the Lock-in hardware checks below on
+all four setups. Multiline tips and number-only Phase entry (automatic degree suffix) were checked
+with fake VISA and hidden native layouts: optp 32/32; mo/img/thz 31/31 each.
+MO scan/peak behavior stays unchanged at the user's request; image peak search stays disabled,
+and THz Emission's available modes still do not enter its inherited 1D_THz peak-search branch.
+
+Copied from current v3.5; see `OPTP_dev_log.md`. Fake-instrument/native-layout checks:
+`test_lockin_controls.py --native-preview` 30/30, `test_scan_failures.py 3.6` 30/30,
+`test_drift_comp.py 3.6` 58/58. Existing v3.5 files and the shared SR830 driver are unchanged.
+- [ ] Connect each SR830 with a known phase: its new field matches the panel, without changing phase.
+  Enter a decimal phase and compare the panel and returned GUI value, including wrapped values.
+- [ ] With a stable baseline, Auto Zero issues X Auto Offset only. Compare the SR830 panel X,
+  the refreshed GUI X and the normal `OUTP? 1` readback; confirm the following scan records the
+  intended offset reading. No real-hardware check of OUTP vs panel offset semantics has run yet.
+- [ ] Confirm noise leaves only a plausible residual and Y/phase/other Lock-in settings are unchanged.
+  Check both controls remain disabled during a formal scan and are restored afterwards.
+
+---
+
+## v3.5 - Beam settle and 1D repeat peak search - IMPLEMENTED, lab check open
+
+Implemented 2026-10-03; see `OPTP_dev_log.md`. Fake-instrument checks:
+`tests/test_drift_comp.py` 58/58 and `tests/test_scan_failures.py` 30/30.
+- [ ] Both beam orders: the configured Beam settle is added in full after temperature stabilization,
+  sample soak and Pass; the default adds 5 minutes before the initial peak search at each temperature.
+- [ ] 1D_THz temperature scan with Drift comp. and Stage2 repeat 3: Re-peak ON searches before
+  repeats 2 and 3 without repeating the waits; OFF searches only once per temperature. Check the
+  tracked TDS peak and Stage2 correction against an actual drifting sample.
+- [ ] Check per-repeat absolute coordinates in `repeat_scan_positions_mm` when analyzing data
+  with re-peaking; the existing iPos1/iPos2 scalars describe the first sweep only.
+- [ ] Confirm Stop during repeat search preserves earlier sweeps, closes the file and applies
+  end-of-scan AutoBlock. Confirm the Lock-in Realtime buttons remain off after scanning.
+- [ ] Check that an invalid scan plan reports its error before changing temperature or beam state;
+  valid compensated plans still scan normally. Scan entry now validates repeat counts, polarization
+  states and initial travel; shifted linear paths are checked again after each peak search.
+
+Deferred by agreement: old temperature-observer replacement after the 2-second stop wait is
+unchanged. A future fix must wait for the old observer to exit safely, without requiring a manual
+temperature ramp to finish before an ordinary ScanT-off scan. Use interruptible polling waits and
+keep the old observer if it cannot exit within the timeout; stopping this observer must not set the
+main scan stop flag. Configuration-only plan validation has now been moved before scan startup.
 
 ---
 

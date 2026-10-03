@@ -194,3 +194,27 @@ This document records the overall development and debugging history for the MO_S
 - Details:
   - before: with Lock-in 2 (or Lock-in 1) not connected, its values were never assigned and storing them raised `UnboundLocalError`, so the scan stopped at its first point; an unconnected lock-in now stores 0.0, as in the other systems,
   - `OPTP_System/tests/test_pump_power.py` now runs every system with Lock-in 2 not connected (it had connected both only to get past this), so the path is covered: `mo` 57/57, `optp` 65/65, `img` / `thz` 57/57; `tests/test_system_sync.py mo` 28/28. Changed in the working copy `C:\GUI_pyqt`.
+
+### v2.6 - Lock-in X Auto Zero and editable reference phase
+- Date: 2026-10-04
+- Main change: created MO_system_iTC_v2.6.py and MO_system_iTC_v2.6.ui from v2.5; the new Python entry point loads the matching UI and its window title identifies v2.6. The v2.5 files remain byte-for-byte unchanged.
+- Details:
+  - Both Auto Phase buttons become Auto Zero. Each sends the existing SR830 X Auto Offset command (AOFF 1), then refreshes the actual X readout and chart. No software subtraction or fabricated zero is added; Y/R offset and reference phase are unchanged.
+  - Each X display is narrowed to approximately 3/5 of its former width; the adjacent Phase QDoubleSpinBox accepts decimal values, displays an automatic degree suffix, reads the current phase on connection, and writes/reads back on Enter or focus loss. Numeric input alone is sufficient. Untouched fields and programmatic readbacks never write a default phase.
+  - Both new controls are enabled only for a connected Lock-in outside scanning. Closing one instrument clears/disables only its controls; failed connection candidates are closed and discarded. Unknown phase readbacks are blank; failed Auto Zero readbacks display --.
+  - Phase, Auto Zero and X-readout tooltips have explicit line breaks. Widget names, layout proportions and behavior match OPTP v3.6. Existing active-checkbox defaults, system-specific instruments, connection addresses and scan modes are preserved.
+  - Scope confirmed by the user: routine MO measurements do not need peak search. No new peak-search panel, repeat re-peaking, Beam settle or two-axis compensation is added. The existing exceptional 1D_THz peak path and every scan/temperature method are unchanged from v2.5.
+- Verification: test_lockin_controls.py mo --native-preview: 31/31 with fake VISA sessions, including a formal acquisition after Auto Zero and numeric-only Phase input. Hidden Windows layout checked at 1920 and 1661 px. AST comparison confirms scan and peak methods unchanged. Shared drivers unchanged; real-instrument Auto Offset/phase checks remain outstanding.
+
+### v2.6 - Sample-soak minute suffix and rich Lock-in tooltip headings
+- Date: 2026-10-04
+- Main change: Phase, Auto Zero and X-readout tooltips now use a bold control-name heading, a separate explanatory paragraph and explicit short line breaks, matching the other rich-text help in the UI.
+- Details:
+  - Both Lock-in rows use the same rich-text formatting across all four current systems. Phase still accepts numbers alone and adds its degree suffix automatically.
+  - WaitSamStable now has the QSpinBox suffix " min". Typing 17 displays "17 min" while value() remains the integer 17 used by the existing minute-based scan wait. Its tooltip uses the same heading/body format and explains the automatic unit and zero-wait setting. Existing defaults and numeric limits are unchanged.
+- Verification: loaded all four current UIs with their real controller initialization in a hidden native Windows window, with temporary QSettings and without connecting instruments. Confirmed bold title formatting, visible paragraph separation and short body lines; inspected rendered tooltip images. Where present, typed a bare numeric wait value and checked the automatic min display, unchanged numeric value, and maximum-value fit at 1661 px window width. Updated the existing tooltip-format assertion for rich text. Application Python files and previous UI versions are unchanged; no acquisition or real-hardware test was needed for this presentation-only change.
+
+### v2.6 - Beam-order alignment with OPTP Soak -> Pass default
+- Date: 2026-10-04
+- Main change: verified that the existing AutoBlock temperature-scan sequence is already fixed at Block -> temperature stable -> sample soak -> Pass. No passOrder toggle or default change is needed. Updated AutoBlock help to state this order explicitly and identify WaitSamStable as the soak duration.
+- Verification: exercised the current pre-acquisition temperature/beam code with fake controller, thread and signal objects, stopping before data-file creation. Confirmed the normal order and no Pass after failed stabilization or interrupted soak. UI comparison confirms only the AutoBlock tooltip changed; application Python and all control defaults are unchanged. No real instruments were operated.

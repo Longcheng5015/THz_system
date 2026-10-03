@@ -20,15 +20,17 @@ class ScanStorageCore:
         cls,
         h5_file: h5py.File,
         shape: Sequence[int],
+        *,
+        fillvalue: float = 0.0,
     ) -> dict[str, h5py.Dataset]:
-        """Create the four standard lock-in datasets with one-point chunks."""
+        """Create the four lock-in datasets; callers can mark unacquired points with NaN."""
         if len(shape) != 6 or any(int(size) <= 0 for size in shape):
             raise ValueError("Lock-in dataset shape must contain six positive dimensions.")
 
         dataset_shape = tuple(int(size) for size in shape)
         chunk_shape = (1, 1, 1, 1, 1, 1)
         return {
-            name: h5_file.create_dataset(name, shape=dataset_shape, chunks=chunk_shape, dtype="f8")
+            name: h5_file.create_dataset(name, shape=dataset_shape, chunks=chunk_shape, dtype="f8", fillvalue=fillvalue)
             for name in cls.LOCKIN_DATASET_NAMES
         }
 

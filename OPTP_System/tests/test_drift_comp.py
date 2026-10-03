@@ -327,5 +327,143 @@ reset_positions(); ui.AutoBlock.setChecked(True); lockin.stop_at = 20; run(); lo
 check("Stop during the search ends the scan (no data file) and blocks the beam",
       not files() and "Scan stopped by user" in last_log() and m.flipmount.p == 2 and len(READS) == 20)
 
+# ---------------------------------------------------------------- drift continuing between Stage2 repeats
+if hasattr(ui, 'repeatPeak'):
+    check("repeat peak defaults on", ui.repeatPeak.isChecked() and ui.repeatPeak.text() == 'Re-peak: ON')
+    ui.repeatPeak.setChecked(False)
+    check("repeat peak toggle caption follows off", ui.repeatPeak.text() == 'Re-peak: OFF')
+    ui.repeatPeak.setChecked(True)
+    m.set_ControlsEnabledDuringScan(True)
+    check("repeat peak toggle is locked during acquisition", not ui.repeatPeak.isEnabled())
+    m.set_ControlsEnabledDuringScan(False)
+
+    setup_1d(); ui.scanRepNO2.setValue(3)
+    m.tp_manager.clear_all(); m.tp_manager.add_sequence(10, 10, 2)
+    shifts, measured, search_calls = {}, {}, []
+    searching, fail_search_no = [False], [None]
+    old_peak, old_get_x = lockin.peak, lockin.get_x
+    old_compensate = m.compensate_temperature_drift
+    lockin.peak = lambda: old_peak() + shifts.get(m.mercuryiTC.T, 0.0)
+
+    def drifting_read():
+        value = old_get_x()
+        if not searching[0]:
+            temperature = m.mercuryiTC.T
+            measured[temperature] = measured.get(temperature, 0) + 1
+            # The sample drifts +4 um AFTER each 3-point Stage2 sweep, including with re-peak off.
+            if measured[temperature] % 3 == 0:
+                shifts[temperature] = shifts.get(temperature, 0.0) + 0.004
+        return value
+
+    def track_search(*args):
+        search_calls.append(m.mercuryiTC.T)
+        searching[0] = True
+        previous_mode = lockin.mode
+        if len(search_calls) == fail_search_no[0]:
+            lockin.mode = 'far'
+        try:
+            return old_compensate(*args)
+        finally:
+            lockin.mode = previous_mode
+            searching[0] = False
+
+    lockin.get_x = drifting_read
+    m.compensate_temperature_drift = track_search
+
+    def repeat_run():
+        shifts.clear(); measured.clear(); search_calls.clear()
+        reset_positions()
+        run()
+        saved = []
+        for path in sorted(glob.glob(os.path.join(TMP, '*.h5'))):
+            with h5py.File(path, 'r') as h:
+                saved.append({
+                    'signal': h['lockin1_X'][()],
+                    'positions': h['repeat_scan_positions_mm'][()] if 'repeat_scan_positions_mm' in h else None,
+                    'initial': (float(h['iPos1'][()]), float(h['iPos2'][()])),
+                })
+        return saved
+
+    saved = repeat_run()
+    check("two temperatures x three repeats: exactly six peak searches", search_calls == [10] * 3 + [20] * 3)
+    check("re-peak corrects ongoing drift: every measured point stays on the peak",
+          len(saved) == 2 and all(np.allclose(f['signal'], 1, atol=2e-3) for f in saved))
+    expected_peaks = [np.array([peak(t) + r * 0.004 for r in range(3)]) for t in (10, 20)]
+    check("per-repeat metadata stores stage1, compensated stage2 and latest peak",
+          all(np.allclose(f['positions'][0, 0, :, 0, 0, :],
+                          np.column_stack((p, IPOS2_0 - (p - P0), p))) for f, p in zip(saved, expected_peaks)))
+    check("initial scalar coordinates remain the first sweep reference",
+          all(np.allclose(f['initial'], (p[0], IPOS2_0 - (p[0] - P0))) for f, p in zip(saved, expected_peaks)))
+    check("repeat search adds no extra beam passes, sample soaks or beam-settle waits",
+          EVENTS.count('pass') == 2 and EVENTS.count('soak') == 2 and len(BEAM_WAITS) == 2)
+    check("ScanLog records the repeat setting and each extra search",
+          'Repeat peak : on' in last_log() and last_log().count('Repeat peak search: Stage2 repeat') == 4)
+
+    ui.stage2CompDir.setChecked(False)
+    saved = repeat_run()
+    check("repeat compensation also honors Forward direction",
+          all(np.allclose(f['positions'][0, 0, :, 0, 0, 1], IPOS2_0 + (p - P0)) for f, p in zip(saved, expected_peaks)))
+    ui.stage2CompDir.setChecked(True)
+
+    ui.repeatPeak.setChecked(False)
+    saved = repeat_run()
+    check("repeat peak off retains one search per temperature and the original file layout",
+          search_calls == [10, 20] and all(f['positions'] is None for f in saved))
+    check("off switch permits the drifted later sweeps, proving no hidden repeat search",
+          all(np.all(f['signal'][0, 0, :, 1, 0, 0] < 0.8) for f in saved))
+    ui.repeatPeak.setChecked(True)
+
+    ui.scanMode.setCurrentText('2D_THz'); ui.stage1Step1NO.setValue(3)
+    saved = repeat_run()
+    check("2D_THz with Stage2 repeats still searches only once per temperature",
+          search_calls == [10, 20] and all(f['positions'] is None for f in saved))
+    setup_1d()
+    ui.driftComp.setChecked(False)
+    saved = repeat_run()
+    check("Drift comp. off disables both initial and repeat searches", not search_calls and all(f['positions'] is None for f in saved))
+    ui.driftComp.setChecked(True); ui.ScanT.setChecked(False)
+    saved = repeat_run()
+    check("non-temperature 1D repeats add no peak searches", not search_calls and len(saved) == 1 and saved[0]['positions'] is None)
+    ui.ScanT.setChecked(True); ui.scanRepNO2.setValue(1)
+    saved = repeat_run()
+    check("Stage2 repeat count one adds no extra search", search_calls == [10, 20] and all(f['positions'] is None for f in saved))
+    ui.scanRepNO2.setValue(3)
+
+    lockin.stop_at = 122 + 3 + 20
+    saved = repeat_run()
+    lockin.stop_at = None
+    check("Stop during repeat search preserves first sweep, leaves later sweeps NaN, closes file and blocks",
+          len(saved) == 1 and np.isfinite(saved[0]['signal'][0, 0, :, 0, 0, 0]).all()
+          and np.isnan(saved[0]['signal'][0, 0, :, 1:, 0, 0]).all()
+          and np.isnan(saved[0]['positions'][0, 0, 1:, 0, 0, :]).all()
+          and not m.h5_file and m.flipmount.p == 2 and 'Scan stopped by user' in last_log())
+
+    fail_search_no[0] = 2
+    saved = repeat_run()
+    check("failed repeat peak search keeps the previous reference and later searches can recover",
+          np.allclose(saved[0]['positions'][0, 0, 0, 0, 0, :], saved[0]['positions'][0, 0, 1, 0, 0, :])
+          and np.allclose(saved[0]['signal'][0, 0, :, 2, 0, 0], 1, atol=2e-3)
+          and 'WARNING: peak search failed' in last_log())
+    fail_search_no[0] = None
+
+    original_limits = m.stage2.travel_limits
+    m.stage2.travel_limits = lambda: (IPOS2_0 - 0.003, 300)
+    try:
+        saved = repeat_run()
+    finally:
+        m.stage2.travel_limits = original_limits
+    check("repeat correction outside travel aborts before any second-sweep acquisition",
+          len(saved) == 1 and np.isnan(saved[0]['signal'][0, 0, :, 1:, 0, 0]).all()
+          and 'planned positions do not fit' in last_log() and m.flipmount.p == 2 and not m.h5_file)
+
+    ui.stage1Step1NO.setValue(2); ui.rotary2Step.setValue(30); ui.rotary2StepNO.setValue(2)
+    saved = repeat_run()
+    check("each stage1/polarization context gets searches before Stage2 repeats 2 and 3",
+          len(search_calls) == 2 * (1 + 2 * 2 * 2)
+          and all(f['positions'].shape == (2, 1, 3, 2, 1, 3) and np.isfinite(f['positions']).all() for f in saved))
+
+    lockin.peak, lockin.get_x = old_peak, old_get_x
+    m.compensate_temperature_drift = old_compensate
+
 print(f"\n{sum(ok for _, ok in results)}/{len(results)} passed")
 sys.exit(0 if all(ok for _, ok in results) else 1)

@@ -255,6 +255,8 @@ class moSys:
         self.on_stage2_comp_dir_toggled(self.ui.stage2CompDir.isChecked())
         self.ui.passOrder.toggled.connect(self.on_pass_order_toggled)
         self.on_pass_order_toggled(self.ui.passOrder.isChecked())
+        self.ui.repeatPeak.toggled.connect(self.on_repeat_peak_toggled)
+        self.on_repeat_peak_toggled(self.ui.repeatPeak.isChecked())
 
         # flip mount: changing which channel is 'pass' only re-reads the beam state, it never moves the mount
         self.ui.fmPassCh.currentIndexChanged.connect(self.update_flipmount_indicator)
@@ -1505,6 +1507,9 @@ class moSys:
 
     def on_pass_order_toggled(self, checked: bool):
         self.ui.passOrder.setText('Pass → Soak' if checked else 'Soak → Pass')
+
+    def on_repeat_peak_toggled(self, checked: bool):
+        self.ui.repeatPeak.setText('Re-peak: ON' if checked else 'Re-peak: OFF')
     
     # Import calibration file
     def import_calibration_file(self, interp_cali_data: bool = False) -> dict | None:
@@ -1843,8 +1848,7 @@ class moSys:
                 try:
                     self.stage1.move_to(pos)
                 except Exception as e:
-                    print(f"Error moving Stage1 to position {pos} mm during peak search: {e}")
-                    continue
+                    raise RuntimeError(f"Stage1 move to {pos} mm failed during peak search: {e}") from e
 
                 # update curr NO / curr position displays during the peak search
                 if thread is not None:
@@ -1860,8 +1864,7 @@ class moSys:
                 try:
                     x_val = float(self.lockin1.get_x())
                 except Exception as e:
-                    print(f"Error reading Lockin1 X value at position {pos} mm during peak search: {e}")
-                    x_val = np.nan
+                    raise RuntimeError(f"Lock-in 1 X read failed during peak search at {pos} mm: {e}") from e
 
                 peak_samples.append((pos, [x_val]))
 
@@ -1937,6 +1940,8 @@ class moSys:
                  f"Stage2 compensation:  {ui.stage2CompDir.text()}",
                  f"Round 1:  {ui.R1_step.value()} um x \u00b1{ui.R1_pts.value()}",
                  f"Round 2:  {ui.R2_step.value()} um x \u00b1{ui.R2_pts.value()}"]
+        if ui.scanMode.currentText() == '1D_THz' and ui.scanRepNO2.value() > 1:
+            lines.append(f"Stage2 repeat peak search:  {'on' if ui.repeatPeak.isChecked() else 'off'}")
         if ui.AutoBlock.isChecked():
             lines.append(f"Beam / soak:  {ui.passOrder.text()}")
             lines.append(f"Extra beam settle:  {ui.beamSettle.value():g} min after soak and beam pass")
@@ -2001,8 +2006,83 @@ class moSys:
     #endregion
      
     #region Move active stages and display current positions
+    def prepare_scan_plan(self):
+        """Validate the UI configuration before starting a worker or changing any instruments."""
+        ui = self.ui
+        repetitions = tuple(getattr(ui, name).value() for name in
+                            ('scanRepNO1', 'scanRepNO2', 'ScanRepNO_R1', 'ScanRepNO_R2'))
+        rep_plan = DataProcess.validate_scan_repetitions(*repetitions)
+        if not rep_plan['is_valid']:
+            raise ValueError(str(rep_plan['error_msg']))
+
+        initials = tuple(getattr(ui, name).value() for name in ('iPos1', 'iPos2', 'iRot1', 'iRot2', 'iRot3'))
+        arrays = tuple(self.get_step_array(axis) for axis in ('stage1', 'stage2', 'rotary1', 'rotary2', 'rotary3'))
+        sequences = tuple(self.scan_planner.generate_position_sequence(start, steps)
+                          for start, steps in zip(initials, arrays))
+        # Calibration forces coupling, as in the existing acquisition path.
+        manu_cali_active = bool(ui.pol_cali_mode.isChecked() and self.cali_table)
+        if manu_cali_active and not ui.Rot_stages_couple.isChecked():
+            print("Note: a calibration table is loaded, so the rotation stages run coupled for "
+                  "this scan even though the button reads 'Independent'.")
+        pol_plan = self.scan_planner.build_pol_states(
+            iRot1=initials[2], iRot2=initials[3], iRot3=initials[4],
+            rotary1_pos_sequence=sequences[2][0],
+            rotary2_pos_sequence=sequences[3][0],
+            rotary3_pos_sequence=sequences[4][0],
+            rotary1_NO=len(sequences[2][0]), rotary2_NO=len(sequences[3][0]), rotary3_NO=len(sequences[4][0]),
+            polarization_policy='coupled' if ui.Rot_stages_couple.isChecked() or manu_cali_active else 'independent',
+            pol_cali_mode=ui.pol_cali_mode.isChecked(), cali_table=self.cali_table,
+        )
+        error_msg = pol_plan.get('error_msg')
+        if isinstance(error_msg, str) and error_msg.startswith('Error:'):
+            raise ValueError(error_msg)
+        elif error_msg:
+            print(f"Warning: {error_msg}")
+
+        # Include the initial rotary configuration used before search/repeat resets,
+        # which can differ from the calibrated polarization positions.
+        self.validate_scan_travel((
+            ('Stage1', ui.activeStage1, self.stage1, sequences[0][0], 'mm'),
+            ('Stage2', ui.activeStage2, self.stage2, sequences[1][0], 'mm'),
+            ('Rotary1', ui.activeRot1, self.rotary1, [initials[2]] + pol_plan['pol_rot1_list'], 'deg'),
+            ('Rotary2', ui.activeRot2, self.rotary2, [initials[3]] + pol_plan['pol_rot2_list'], 'deg'),
+            ('Rotary3', ui.activeRot3, self.rotary3, [initials[4]] + pol_plan['pol_rot3_list'], 'deg'),
+        ))
+        return {'scan_mode': ui.scanMode.currentText(), 'initials': initials, 'arrays': arrays,
+                'sequences': sequences, 'repetitions': repetitions, 'pol_rep': int(rep_plan['pol_rep']),
+                'pol_plan': pol_plan}
+
+    def validate_scan_travel(self, axis_plans):
+        """Reject unreachable planned positions, including paths shifted by a repeat peak search."""
+        travel_errors = []
+        for label, active_box, device, targets, unit in axis_plans:
+            if not (active_box.isChecked() and device):
+                continue
+            limits = getattr(device, 'travel_limits', None)
+            low, high = limits() if limits else (None, None)
+            if low is None or high is None:
+                continue  # controller did not report a travel; the move itself still guards
+            # Full-turn rotary stages may wrap targets into their travel.
+            resolve = getattr(device, 'resolve_target', None)
+            unreachable = []
+            for target in targets:
+                if resolve is not None:
+                    try:
+                        resolve(target)
+                    except Exception:
+                        unreachable.append(target)
+                elif not low <= target <= high:
+                    unreachable.append(target)
+            if unreachable:
+                travel_errors.append(
+                    f"{label}: {len(unreachable)} of {len(targets)} planned positions are outside "
+                    f"its travel {low} .. {high} {unit}, e.g. {sorted(set(unreachable))[:3]}"
+                )
+        if travel_errors:
+            raise ValueError("Error: planned positions do not fit the stage travel.\n" + "\n".join(travel_errors))
+
     def move_active_stages(self, target_positions: tuple):
-        
+        """Move enabled axes; propagate driver/readback errors without comparing position tolerances."""
         stage1_pos, stage2_pos, rotary1_pos, rotary2_pos, rotary3_pos = target_positions
         
         # Initialize current positions with placeholder (-1)
@@ -2048,8 +2128,7 @@ class moSys:
 
             return True, currPositions
         except Exception as e:
-            print(f"Error moving {moving_axis or 'active stages'}: {e}")
-            return False, None
+            raise RuntimeError(f"Error moving {moving_axis or 'active stages'}: {e}") from e
         #endregion
     
     #region Stop_Scan flag and message function
@@ -2159,6 +2238,9 @@ class moSys:
                 lines.append(f"Drift comp. : on, TDS Ppos {ui.TDS_Ppos.value():.3f} mm, "
                              f"R1 {ui.R1_step.value()} um x \u00b1{ui.R1_pts.value()}, "
                              f"R2 {ui.R2_step.value()} um x \u00b1{ui.R2_pts.value()}, stage2 {ui.stage2CompDir.text()}")
+                if ui.scanMode.currentText() == '1D_THz' and ui.scanRepNO2.value() > 1:
+                    lines.append(f"Repeat peak : {'on' if ui.repeatPeak.isChecked() else 'off'} "
+                                 "before Stage2 repeats 2 and later")
             else:
                 lines.append("Drift comp. : off")
         else:
@@ -2318,9 +2400,25 @@ class moSys:
             QMessageBox.warning(self.ui, "Instruments not ready", message)
             return
 
+        # Reject bad counts/positions before the temperature wait, beam changes, peak search or files.
+        try:
+            scan_plan = self.prepare_scan_plan()
+        except Exception as e:
+            message = f"Cannot start scan - invalid scan plan:\n\n{e}"
+            print(message)
+            QMessageBox.warning(self.ui, "Invalid scan plan", message)
+            return
+
         # temperature scan with drift compensation: TDS Ppos must be set, and the user confirms it as the reference
         if self.drift_comp_active() and not self.confirm_drift_compensation():
             return
+
+        # A disabled checkbox does not stop its QTimer. Release both Realtime switches
+        # before the worker starts; they stay off after the scan, until explicitly enabled.
+        self.ui.realtimeDisp1.setChecked(False)
+        self.ui.realtimeDisp2.setChecked(False)
+        self.chart_updaters['realDisChart1'].toggle(False)
+        self.chart_updaters['realDisChart2'].toggle(False)
 
         # update data folder date if not using custom path
         if not getattr(self, 'is_custom_save_path', False):
@@ -2336,7 +2434,7 @@ class moSys:
         
         # Create scan thread, connect to the separate 'ScanThread' class
         self._disconnect_scan_signals()
-        self.scan_Thread = ScanThread(self)  # create scan thread
+        self.scan_Thread = ScanThread(self, scan_plan)  # use the same plan that passed validation
         
         # connect signals to update UI
         self.scan_Thread.repeat_update.connect(self.update_curr_repeat)
@@ -2368,8 +2466,18 @@ class moSys:
     #region _execute_scan_logic: actual scan logic executed in ScanThread
     def _execute_scan_logic(self, thread):   
         print("======================Executing scan logic in Thread======================")
-        scan_mode_box = getattr(self.ui, 'scanMode', None)
-        scan_mode = scan_mode_box.currentText() if scan_mode_box else "UnknownMode"
+        plan = thread.scan_plan
+        scan_mode = plan['scan_mode']
+        stage1_array, stage2_array, rotary1_array, rotary2_array, rotary3_array = plan['arrays']
+        stage1_rep, stage2_rep, rotary1_rep, rotary2_rep = plan['repetitions']
+        pol_rep = plan['pol_rep']
+        iRot1, iRot2, iRot3 = plan['initials'][2:]
+        rotary1_pos_sequence, rotary1_step_sequence, rotary1_stepNO_sequence = plan['sequences'][2]
+        rotary2_pos_sequence, rotary2_step_sequence, rotary2_stepNO_sequence = plan['sequences'][3]
+        rotary3_pos_sequence, rotary3_step_sequence, rotary3_stepNO_sequence = plan['sequences'][4]
+        pol_plan = plan['pol_plan']
+        pol_rot1_list, pol_rot2_list, pol_rot3_list = (pol_plan[f'pol_rot{i}_list'] for i in (1, 2, 3))
+        N_pol = pol_plan['N_pol']
         
         #region set_Temperature if active and temperature scan is enabled
         has_temperature = self.temperature_scan_active()
@@ -2383,9 +2491,9 @@ class moSys:
         # Start positions travel with the scan: with drift compensation they change per temperature point,
         # and the UI is only updated asynchronously, so they are never read back from the UI.
         drift_comp = has_temperature and self.ui.driftComp.isChecked()
-        scan_iPos1, scan_iPos2 = self.ui.iPos1.value(), self.ui.iPos2.value()
+        scan_iPos1, scan_iPos2 = plan['initials'][:2]
         scan_Ppos = self.ui.TDS_Ppos.value()
-        scan_iRots = (self.ui.iRot1.value(), self.ui.iRot2.value(), self.ui.iRot3.value())
+        scan_iRots = (iRot1, iRot2, iRot3)
 
         # loop over temperature sequence
         for temp_idx, target_T in enumerate(Temp_sequence):
@@ -2471,21 +2579,14 @@ class moSys:
                     self.scan_log_event(f"T point {temp_idx + 1}/{len(Temp_sequence)} = {target_T} K reached "
                                         f"(stabilized + sample soak)", thread)
                 else:
-                    print(f"Skipping temperature stabilization wait for {target_T} K: "
-                          f"no stabilization thread was started (iTC not connected?).")
-                    self.scan_log_event(f"T point {temp_idx + 1}/{len(Temp_sequence)} = {target_T} K: "
-                                        f"stabilization not started, measuring without waiting", thread)
+                    raise RuntimeError(f"Temperature stabilization could not start at {target_T} K; "
+                                       "check the iTC connection and temperature sensor UID.")
                 
-                should_run_scan = True
-
                 #region stop check before formal scan
                 if self._check_scan_stop(thread):
                     print("Stop request detected before formal scan. Exiting current scan sequence.")
                     break
                 #endregion
-
-                if not should_run_scan:
-                    continue
 
             # AutoBlock: let the beam through before the peak search and the measurement, unless 'Pass -> Soak'
             # already did. A mount that fails to open would produce a whole data set of blocked-beam signal, so abort.
@@ -2515,6 +2616,17 @@ class moSys:
                     print("Peak search interrupted by stop request. Exiting scan loop.")
                     break
 
+            # Peak search can shift both linear plans. Validate the actual compensated positions
+            # before opening this temperature's data file or moving to a formal scan point.
+            iPos1, iPos2 = scan_iPos1, scan_iPos2
+            # Generate position sequences, in mm for linear stages, degree for rotary stages
+            stage1_pos_sequence,  stage1_step_sequence,  stage1_stepNO_sequence  = self.scan_planner.generate_position_sequence(iPos1, stage1_array);  stage1_NO = len(stage1_pos_sequence)
+            stage2_pos_sequence,  stage2_step_sequence,  stage2_stepNO_sequence  = self.scan_planner.generate_position_sequence(iPos2, stage2_array);  stage2_NO = len(stage2_pos_sequence)
+            self.validate_scan_travel((
+                ('Stage1', self.ui.activeStage1, self.stage1, stage1_pos_sequence, 'mm'),
+                ('Stage2', self.ui.activeStage2, self.stage2, stage2_pos_sequence, 'mm'),
+            ))
+
             #region Navigate to data save path and create file for saving data
             fileName = self.setup_dataFile_Name(f"{scan_mode}_{target_T}K" if self.ui.ScanT.isChecked() else scan_mode)
             filePath = self.dataSave_path
@@ -2532,159 +2644,47 @@ class moSys:
             #region Save scan parameters in HDF5 file || generate all position sequences || initialize datasets
             
             # start positions (drift-compensated in a temperature scan with Drift comp. on)
-            iPos1 = scan_iPos1
-            stage1_array = self.get_step_array('stage1')
             self.ds_iPos1 = self.h5_file.create_dataset('iPos1', data=iPos1, dtype='f8')
             self.ds_stage1_array = self.h5_file.create_dataset('stage1_array', data=stage1_array, dtype='f8')
                     
-            iPos2 = scan_iPos2
-            stage2_array = self.get_step_array('stage2')
             self.ds_iPos2 = self.h5_file.create_dataset('iPos2', data=iPos2, dtype='f8')
             self.ds_stage2_array = self.h5_file.create_dataset('stage2_array', data=stage2_array, dtype='f8')
             
-            iRot1 = getattr(self.ui,'iRot1').value()
-            rotary1_array = self.get_step_array('rotary1')
             self.ds_iRot1 = self.h5_file.create_dataset('iRot1', data=iRot1, dtype='f8')
             self.ds_rotary1_array = self.h5_file.create_dataset('rotary1_array', data=rotary1_array, dtype='f8')
 
-            iRot2 = getattr(self.ui,'iRot2').value()
-            rotary2_array = self.get_step_array('rotary2')
             self.ds_iRot2 = self.h5_file.create_dataset('iRot2', data=iRot2, dtype='f8')
             self.ds_rotary2_array = self.h5_file.create_dataset('rotary2_array', data=rotary2_array, dtype='f8')
             
-            iRot3 = getattr(self.ui,'iRot3').value()
-            rotary3_array = self.get_step_array('rotary3')
             self.ds_iRot3 = self.h5_file.create_dataset('iRot3', data=iRot3, dtype='f8')
             self.ds_rotary3_array = self.h5_file.create_dataset('rotary3_array', data=rotary3_array, dtype='f8')
 
-            stage1_rep = getattr(self.ui, 'scanRepNO1').value()
-            stage2_rep = getattr(self.ui, 'scanRepNO2').value()
-            rotary1_rep = getattr(self.ui, 'ScanRepNO_R1').value()
-            rotary2_rep = getattr(self.ui, 'ScanRepNO_R2').value()
             rep_array = np.array([stage1_rep, stage2_rep, rotary1_rep, rotary2_rep], dtype='i8')
             self.ds_rep_array = self.h5_file.create_dataset('rep_array', data=rep_array, dtype='i8') 
 
             self.h5_file.flush()  # write to file for avoiding data loss
             
-            #region check if both stage repetitions are greater than 1
-            rep_plan = DataProcess.validate_scan_repetitions(
-                stage1_rep=stage1_rep,
-                stage2_rep=stage2_rep,
-                rotary1_rep=rotary1_rep,
-                rotary2_rep=rotary2_rep,
-            )
-            if not rep_plan['is_valid']:
-                error_msg = str(rep_plan['error_msg'])
-                print(error_msg)
-                thread.error_occurred.emit(error_msg)
-                if self.h5_file:
-                    self.h5_file.close()
-                return
-
-            pol_rep = int(rep_plan['pol_rep'])
-
-            #endregion
-
-            # Generate position sequences, in mm for linear stages, degree for rotary stages
-            stage1_pos_sequence,  stage1_step_sequence,  stage1_stepNO_sequence  = self.scan_planner.generate_position_sequence(iPos1, stage1_array);  stage1_NO = len(stage1_pos_sequence)
-            stage2_pos_sequence,  stage2_step_sequence,  stage2_stepNO_sequence  = self.scan_planner.generate_position_sequence(iPos2, stage2_array);  stage2_NO = len(stage2_pos_sequence)
-            rotary1_pos_sequence, rotary1_step_sequence, rotary1_stepNO_sequence = self.scan_planner.generate_position_sequence(iRot1, rotary1_array); rotary1_NO = len(rotary1_pos_sequence)
-            rotary2_pos_sequence, rotary2_step_sequence, rotary2_stepNO_sequence = self.scan_planner.generate_position_sequence(iRot2, rotary2_array); rotary2_NO = len(rotary2_pos_sequence)
-            rotary3_pos_sequence, rotary3_step_sequence, rotary3_stepNO_sequence = self.scan_planner.generate_position_sequence(iRot3, rotary3_array); rotary3_NO = len(rotary3_pos_sequence)
-
-            #region Decide if use calibration data for rotary2-based polarization dependence scan
-            # The Rot_stages_couple button picks how the three rotary axes are combined:
-            # unchecked ('Independent', the default) -> cartesian product, an axis left at a single
-            # state simply holds its initial angle; checked ('Coupled') -> the three axes step
-            # together, one angle each per polarization point, and must have equal step counts.
-            # Manual calibration overrides the button: build_pol_states() only reads the calibration
-            # table on the coupled path, so an imported table would otherwise be silently ignored.
-            manu_cali_active = bool(self.ui.pol_cali_mode.isChecked() and self.cali_table)
-            rot_stages_coupled = self.ui.Rot_stages_couple.isChecked() or manu_cali_active
-            if manu_cali_active and not self.ui.Rot_stages_couple.isChecked():
-                print("Note: a calibration table is loaded, so the rotation stages run coupled for "
-                      "this scan even though the button reads 'Independent'.")
-            pol_plan = self.scan_planner.build_pol_states(
-                iRot1=iRot1,
-                iRot2=iRot2,
-                iRot3=iRot3,
-                rotary1_pos_sequence=rotary1_pos_sequence,
-                rotary2_pos_sequence=rotary2_pos_sequence,
-                rotary3_pos_sequence=rotary3_pos_sequence,
-                rotary1_NO=rotary1_NO,
-                rotary2_NO=rotary2_NO,
-                rotary3_NO=rotary3_NO,
-                polarization_policy='coupled' if rot_stages_coupled else 'independent',
-                pol_cali_mode=self.ui.pol_cali_mode.isChecked(),
-                cali_table=self.cali_table,
-            )
-
-            error_msg = pol_plan.get('error_msg')
-            if isinstance(error_msg, str) and error_msg.startswith('Error:'):
-                print(error_msg)
-                thread.error_occurred.emit(error_msg)
-                if self.h5_file:
-                    self.h5_file.close()
-                return
-            elif error_msg:
-                print(f"Warning: {error_msg}")
-
-            pol_rot1_list = pol_plan['pol_rot1_list']
-            pol_rot2_list = pol_plan['pol_rot2_list']
-            pol_rot3_list = pol_plan['pol_rot3_list']
-            N_pol = pol_plan['N_pol']
-            #endregion
-
-            #region Check the planned positions against the travel of each active axis
-            # A target outside the travel is only rejected when it is actually commanded, and the
-            # rotation stages sit in the outer loop, so one bad angle silently kills every point of
-            # that sweep. Everything is known here, so the whole plan is checked before anything moves.
-            travel_errors = []
-            for label, active_box, device, targets, unit in (
-                ('Stage1',  self.ui.activeStage1, self.stage1,  stage1_pos_sequence, 'mm'),
-                ('Stage2',  self.ui.activeStage2, self.stage2,  stage2_pos_sequence, 'mm'),
-                ('Rotary1', self.ui.activeRot1,   self.rotary1, pol_rot1_list,       'deg'),
-                ('Rotary2', self.ui.activeRot2,   self.rotary2, pol_rot2_list,       'deg'),
-                ('Rotary3', self.ui.activeRot3,   self.rotary3, pol_rot3_list,       'deg'),
-            ):
-                if not (active_box.isChecked() and device):
-                    continue
-                limits = getattr(device, 'travel_limits', None)
-                low, high = limits() if limits else (None, None)
-                if low is None or high is None:
-                    continue  # controller did not report a travel; the move itself still guards
-                # A rotary resolves a target itself (a full-turn axis wraps), so ask it rather than
-                # comparing against the raw limits, which would reject angles it handles fine.
-                resolve = getattr(device, 'resolve_target', None)
-                unreachable = []
-                for target in targets:
-                    if resolve is not None:
-                        try:
-                            resolve(target)
-                        except Exception:
-                            unreachable.append(target)
-                    elif not low <= target <= high:
-                        unreachable.append(target)
-                if unreachable:
-                    travel_errors.append(
-                        f"{label}: {len(unreachable)} of {len(targets)} planned positions are outside "
-                        f"its travel {low} .. {high} {unit}, e.g. {sorted(set(unreachable))[:3]}"
-                    )
-            if travel_errors:
-                error_msg = "Error: planned positions do not fit the stage travel.\n" + "\n".join(travel_errors)
-                print(error_msg)
-                thread.error_occurred.emit(error_msg)
-                if self.h5_file:
-                    self.h5_file.close()
-                return
-            #endregion
-
             lockin_shape = (stage1_NO, stage1_rep, stage2_NO, stage2_rep, N_pol, pol_rep)
-            self.lockin_datasets = ScanStorageCore.create_lockin_datasets(self.h5_file, lockin_shape)
+            # An interrupted/failed scan leaves unacquired points as NaN, never as measured zeros.
+            self.lockin_datasets = ScanStorageCore.create_lockin_datasets(self.h5_file, lockin_shape, fillvalue=np.nan)
             self.ds_lockin1_X = self.lockin_datasets['lockin1_X']
             self.ds_lockin1_Y = self.lockin_datasets['lockin1_Y']
             self.ds_lockin2_X = self.lockin_datasets['lockin2_X']
             self.ds_lockin2_Y = self.lockin_datasets['lockin2_Y']
+
+            repeat_peak = (drift_comp and scan_mode == '1D_THz' and stage2_rep > 1
+                           and self.ui.repeatPeak.isChecked())
+            repeat_positions = None
+            if repeat_peak:
+                # Keep the original iPos1/iPos2 scalars as the first sweep's reference.
+                # Record the coordinates actually used by each Stage2 sweep separately.
+                repeat_positions = self.h5_file.create_dataset(
+                    'repeat_scan_positions_mm',
+                    shape=(stage1_NO, stage1_rep, stage2_rep, N_pol, pol_rep, 3),
+                    dtype='f8', fillvalue=np.nan)
+                repeat_positions.attrs['axes'] = 'stage1_idx,stage1_rep_idx,stage2_rep_idx,pol_idx,pol_rep_idx,column'
+                repeat_positions.attrs['columns'] = 'stage1_target_mm,stage2_start_mm,tds_peak_mm'
+                repeat_positions.attrs['description'] = 'Commanded sweep coordinates; recorded at the first acquired point.'
 
             print(f"HDF5 data file and datasets are initialized for saving.")
             
@@ -2775,6 +2775,25 @@ class moSys:
                 #endregion
 
                 # Target positions for each stage
+                # Stage2 is the inner sweep in 1D_THz. Search once before repeats 2, 3, ...
+                # in each stage1/polarization context, using the latest reference, not queued UI values.
+                if repeat_peak and stage2_idx == 0 and stage2_rep_idx > 0:
+                    self.scan_log_event(f"Repeat peak search: Stage2 repeat {stage2_rep_idx + 1}/{stage2_rep}; "
+                                        f"Stage1 point {stage1_idx + 1}, polarization {pol_idx + 1}, "
+                                        f"polarization repeat {pol_rep_idx + 1}", thread)
+                    scan_iPos1, scan_iPos2, scan_Ppos, stopped = self.compensate_temperature_drift(
+                        thread, scan_iPos1, scan_iPos2, scan_Ppos, scan_iRots)
+                    if stopped:
+                        print("Repeat peak search interrupted. Exiting scan loop.")
+                        break
+                    iPos1, iPos2 = scan_iPos1, scan_iPos2
+                    stage1_pos_sequence, stage1_step_sequence, stage1_stepNO_sequence = self.scan_planner.generate_position_sequence(iPos1, stage1_array)
+                    stage2_pos_sequence, stage2_step_sequence, stage2_stepNO_sequence = self.scan_planner.generate_position_sequence(iPos2, stage2_array)
+                    self.validate_scan_travel((
+                        ('Stage1', self.ui.activeStage1, self.stage1, stage1_pos_sequence, 'mm'),
+                        ('Stage2', self.ui.activeStage2, self.stage2, stage2_pos_sequence, 'mm'),
+                    ))
+
                 stage1_pos = stage1_pos_sequence[stage1_idx]
                 stage2_pos = stage2_pos_sequence[stage2_idx]
                 rotary1_pos = pol_rot1_list[pol_idx]
@@ -2826,36 +2845,38 @@ class moSys:
                     thread.stepNO_update.emit(curr_stepNOs)
                     
                 else:
-                    print(f"Skipping data acquisition at point {stage1_pos, stage2_pos, rotary1_pos, rotary2_pos, rotary3_pos} due to movement error.")
-                    #continue  # skip data acquisition if movement failed
+                    raise RuntimeError(f"Movement failed at point "
+                                       f"{stage1_pos, stage2_pos, rotary1_pos, rotary2_pos, rotary3_pos}.")
 
 
                 #region Lockin data acquisition and saving
                 wait_time1_s = self.ui.wait1.value() / 1000.0  # convert ms to s
                 wait_time2_s = self.ui.wait2.value() / 1000.0  # convert ms to s
+                lockin1_active = self.ui.activeLockin1.isChecked()
+                lockin2_active = self.ui.activeLockin2.isChecked()
                 l1x, l1y, l2x, l2y = 0.0, 0.0, 0.0, 0.0
                 # collect data from Lockin1
                 try:
-                    if self.lockin1:
+                    if lockin1_active:
                         time.sleep(wait_time1_s)
-                        l1x = self.lockin1.get_x() if self.lockin1 else 0.0
+                        l1x = self.lockin1.get_x()
                         time.sleep(0.05)
-                        l1y = self.lockin1.get_y() if self.lockin1 else 0.0  
+                        l1y = self.lockin1.get_y()
                 except Exception as e:
-                    print(f"Error acquiring data from lockin1: {e}")
-                    l1x, l1y = 0.0, 0.0  # assign default values on error
+                    raise RuntimeError(f"Lock-in 1 read failed: {e}") from e
                 
                 # collect data from Lockin2
                 try:
-                    if self.lockin2:
-                        if self.lockin1 and wait_time2_s > wait_time1_s:
+                    if lockin2_active:
+                        if not lockin1_active:
+                            time.sleep(wait_time2_s)  # no Lock-in 1 acquisition to supply the settling delay
+                        elif wait_time2_s > wait_time1_s:
                             time.sleep(wait_time2_s - wait_time1_s)  # adjust wait time if lockin2 wait is longer
-                        l2x = self.lockin2.get_x() if self.lockin2 else 0.0
+                        l2x = self.lockin2.get_x()
                         time.sleep(0.05)
-                        l2y = self.lockin2.get_y() if self.lockin2 else 0.0
+                        l2y = self.lockin2.get_y()
                 except Exception as e:
-                    print(f"Error acquiring data from lockin2: {e}")
-                    l2x, l2y = 0.0, 0.0  # assign default values on error
+                    raise RuntimeError(f"Lock-in 2 read failed: {e}") from e
                 
                 # Store acquired data into h5py datasets, according to 'position indexes' and scan mode                    
                 scan_index = (stage1_idx, stage1_rep_idx, stage2_idx, stage2_rep_idx, pol_idx, pol_rep_idx)
@@ -2869,6 +2890,9 @@ class moSys:
                         'lockin2_Y': l2y,
                     },
                 )
+                if repeat_positions is not None and stage2_idx == 0:
+                    repeat_positions[stage1_idx, stage1_rep_idx, stage2_rep_idx, pol_idx, pol_rep_idx, :] = (
+                        stage1_pos, stage2_pos_sequence[0], scan_Ppos)
                                     
                 # emit lockin readings to update lockin 1 and 2 charts
                 lockin_readings = {
@@ -3295,26 +3319,44 @@ class ScanThread(QThread):
     error_occurred = Signal(str)    # signal to be emitted when error occurs
     
 
-    def __init__(self, parent_moSys):
+    def __init__(self, parent_moSys, scan_plan):
         super().__init__()           # initialize QThread
         self.parent = parent_moSys
+        self.scan_plan = scan_plan
         self.stop_flag = False       # flag to indicate whether to stop the scan
     
     
     # run method of the thread, called when thread starts            
     def run(self):
+        error_msg = None
         try:
             # call the scan_logic method from parent moSys class, this means executing "_execute_scan_logic" in this thread
             self.parent._execute_scan_logic(self)      # here the "(self)" is passing the ScanThread instance to the method
-            self.parent.auto_block_after_scan(self)    # finished or stopped: block the beam if AutoBlock is on
-            # emit scan finished signal
-            self.scan_finished.emit()
         except Exception as e:
             error_msg = str(e)
             print(f"Error during scan execution: {error_msg}")
             traceback.print_exc()                      # print traceback for debugging
-            self.parent.auto_block_after_scan(self)    # failed: block the beam if AutoBlock is on
-            self.error_occurred.emit(error_msg)        # emit error signal to main thread through error_occurred signal
+        finally:
+            # Always attempt both cleanup operations before the GUI unlocks the controls.
+            try:
+                self.parent.auto_block_after_scan(self)
+            except Exception as e:
+                cleanup_error = f"Beam cleanup failed: {e}"
+                print(cleanup_error)
+                error_msg = f"{error_msg}; {cleanup_error}" if error_msg is not None else cleanup_error
+            try:
+                data_file = getattr(self.parent, 'h5_file', None)
+                if data_file:
+                    data_file.close()
+            except Exception as e:
+                cleanup_error = f"Closing data file failed: {e}"
+                print(cleanup_error)
+                error_msg = f"{error_msg}; {cleanup_error}" if error_msg is not None else cleanup_error
+
+        if error_msg is not None:
+            self.error_occurred.emit(error_msg)
+        else:
+            self.scan_finished.emit()
             
     def request_stop(self):
         """ Set the stop flag to True to request stopping the scan."""
