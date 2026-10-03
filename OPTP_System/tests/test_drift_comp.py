@@ -1,10 +1,11 @@
-"""Headless check of the v3.2 temperature drift compensation (Peak search tab).
+"""Headless check of temperature drift compensation and beam settling (Peak search tab).
 
 Runs the real runScan() -> ScanThread path with fake instruments: the fake lock-in reads a Gaussian THz
 peak on stage1 whose position drifts linearly with the fake iTC temperature, so the expected iPos1 / iPos2
 of every temperature point are known exactly. No hardware, no window, no registry (QSettings -> temp ini).
 
-    python OPTP_System/tests/test_drift_comp.py        (run with the opto_test conda env)
+    python OPTP_System/tests/test_drift_comp.py        (v3.5 by default)
+    python OPTP_System/tests/test_drift_comp.py 3.2    (check an earlier version)
 
 Prints PASS/FAIL per check and "N/N passed"; exits 1 on any failure.
 """
@@ -12,7 +13,8 @@ import os, sys, tempfile, threading, time, glob
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 SYS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(SYS_DIR, "OPTP_system_iTC_v3.2.py")
+VERSION = sys.argv[1] if len(sys.argv) > 1 else "3.5"
+SRC = os.path.join(SYS_DIR, f"OPTP_system_iTC_v{VERSION}.py")
 os.chdir(SYS_DIR)
 sys.path.insert(0, SYS_DIR)
 
@@ -23,7 +25,7 @@ TMP = tempfile.mkdtemp()
 
 src = open(SRC, encoding="utf-8").read()
 src = src[: src.rindex("app = QApplication()")]  # drop the app start-up at the bottom
-ns = {"__file__": SRC, "__name__": "optp_v32_under_test"}
+ns = {"__file__": SRC, "__name__": "optp_under_test"}
 exec(compile(src, SRC, "exec"), ns)
 ns['QSettings'] = lambda org, app: QSettings(os.path.join(TMP, f"{org}.{app}.ini"), QSettings.IniFormat)
 
@@ -124,6 +126,35 @@ def soak(thread=None):
     EVENTS.append('soak'); return True
 m.wait_sample_stable = soak
 
+HAS_BEAM_SETTLE = hasattr(ui, 'beamSettle')
+BEAM_WAITS = []
+STOP_IN_BEAM_WAIT = [False]
+if HAS_BEAM_SETTLE:
+    check("beam settle defaults to 5 min and accepts 0", ui.beamSettle.value() == 5 and ui.beamSettle.minimum() == 0)
+    m.set_ControlsEnabledDuringScan(True)
+    check("beam settle input is locked during scans", not ui.beamSettle.isEnabled())
+    m.set_ControlsEnabledDuringScan(False)
+    check("beam settle input is restored after scans", ui.beamSettle.isEnabled())
+    real_beam_wait = m.wait_beam_stable
+    real_sleep = m._sleep_unless_stopped
+
+    def beam_wait(thread=None):
+        EVENTS.append('beam_wait')
+        durations = []
+        def fast_sleep(seconds, thread=None):
+            durations.append(seconds)
+            if STOP_IN_BEAM_WAIT[0]:
+                thread.request_stop()
+            return not m._check_scan_stop(thread)
+        m._sleep_unless_stopped = fast_sleep
+        try:
+            result = real_beam_wait(thread)
+            BEAM_WAITS.append((sum(durations), m.flipmount.p, result))
+            return result
+        finally:
+            m._sleep_unless_stopped = real_sleep
+    m.wait_beam_stable = beam_wait
+
 warnings, answers = [], []
 QMessageBox.warning = staticmethod(lambda *a, **k: warnings.append(a[2] if len(a) > 2 else ''))
 QMessageBox.question = staticmethod(lambda *a, **k: (answers.append(a[2]), QMessageBox.Yes if ANSWER[0] else QMessageBox.No)[1])
@@ -142,6 +173,7 @@ def reset_positions(ipos1=P0, ipos2=IPOS2_0, ppos=P0):
 
 def run(stop_after=None, timeout=120):
     EVENTS.clear(); READS.clear(); warnings.clear(); answers.clear()
+    BEAM_WAITS.clear()
     before = m.scan_Thread
     for f in glob.glob(os.path.join(TMP, "*.h5")):
         os.remove(f)
@@ -231,15 +263,46 @@ setup_1d(); ui.stage2Step1NO.setValue(3)
 ui.AutoBlock.setChecked(True)
 reset_positions(); ui.passOrder.setChecked(True); run()
 compact = [e for i, e in enumerate(EVENTS) if i == 0 or e != EVENTS[i - 1]]
-check("Pass -> Soak: block, pass, soak, then the search reads", compact[:4] == ['block', 'pass', 'soak', 'read'])
+extra = ['beam_wait'] if HAS_BEAM_SETTLE else []
+expected = ['block', 'pass', 'soak'] + extra + ['read']
+check("Pass -> Soak: sample soak and beam settle finish before search", compact == expected * 3 + ['block'])
+if HAS_BEAM_SETTLE:
+    check("Pass -> Soak: full extra 300 s per T point, beam passing", BEAM_WAITS == [(300, 1, True)] * 3)
+    check("ScanLog records beam settle duration and completion per T point",
+          'Beam settle : 5 min' in last_log() and last_log().count('Beam settle wait complete') == 3)
 reset_positions(); ui.passOrder.setChecked(False); run()
 compact = [e for i, e in enumerate(EVENTS) if i == 0 or e != EVENTS[i - 1]]
-check("Soak -> Pass: block, soak, pass, then the search reads", compact[:4] == ['block', 'soak', 'pass', 'read'])
+expected = ['block', 'soak', 'pass'] + extra + ['read']
+check("Soak -> Pass: sample soak and beam settle finish before search", compact == expected * 3 + ['block'])
+if HAS_BEAM_SETTLE:
+    check("Soak -> Pass: full extra 300 s per T point, beam passing", BEAM_WAITS == [(300, 1, True)] * 3)
 check("beam passed once per T point and blocked at the end", EVENTS.count('pass') == 3 and EVENTS[-1] == 'block')
+if HAS_BEAM_SETTLE:
+    ui.beamSettle.setValue(0); reset_positions(); run()
+    check("zero beam settle skips extra delay and completes measurement", BEAM_WAITS == [(0, 1, True)] * 3 and len(files()) == 3)
+    ui.beamSettle.setValue(2); reset_positions(); run()
+    check("custom beam settle is interpreted in minutes", BEAM_WAITS == [(120, 1, True)] * 3)
+    ui.beamSettle.setValue(5)
+    ui.driftComp.setChecked(False); reset_positions(); run()
+    check("Drift comp. off still settles before measurement", BEAM_WAITS == [(300, 1, True)] * 3
+          and len(READS) == 9 and len(files()) == 3 and EVENTS.index('beam_wait') < EVENTS.index('read'))
+    ui.driftComp.setChecked(True)
+    ui.ScanT.setChecked(False); reset_positions(); run()
+    check("AutoBlock without temperature scan adds no beam settle wait", not BEAM_WAITS and len(files()) == 1)
+    ui.ScanT.setChecked(True)
+    for pass_first in (True, False):
+        ui.passOrder.setChecked(pass_first); STOP_IN_BEAM_WAIT[0] = True
+        reset_positions(); run()
+        check(f"Stop during beam settle ({pass_first=}): no search/data, beam blocked",
+              not READS and not files() and m.flipmount.p == 2
+              and 'Beam settle wait interrupted' in last_log() and 'Scan stopped by user' in last_log())
+    STOP_IN_BEAM_WAIT[0] = False
 ui.passOrder.setChecked(True); ui.AutoBlock.setChecked(False)
 
 # ---------------------------------------------------------------- failures keep the values and go on
 reset_positions(); lockin.mode = 'nan'; run(); F = files()
+if HAS_BEAM_SETTLE:
+    check("AutoBlock off adds no beam settle wait", not BEAM_WAITS)
 check("no valid reading: values kept, measurement continues, WARNING logged",
       len(F) == 3 and all(round(f[0], 3) == P0 and round(f[1], 3) == IPOS2_0 for f in F)
       and last_log().count("WARNING: peak search failed (no valid Lock-in 1 reading)") == 3)
