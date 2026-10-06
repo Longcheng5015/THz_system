@@ -14,6 +14,9 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 SYS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERSION = sys.argv[1] if len(sys.argv) > 1 else "3.5"
+VERSION_PARTS = tuple(map(int, VERSION.split('.')))
+NEW_PEAK_RULES = VERSION_PARTS >= (3, 7)
+ANGLE_PEAK_RULES = VERSION_PARTS >= (3, 8)
 SRC = os.path.join(SYS_DIR, f"OPTP_system_iTC_v{VERSION}.py")
 os.chdir(SYS_DIR)
 sys.path.insert(0, SYS_DIR)
@@ -91,14 +94,16 @@ class FakeLockin:
 
 
 # ---------------------------------------------------------------- set-up
+ns['moSys'].setup_data_folder = lambda self: setattr(self, 'dataSave_path', TMP)
 m = ns['moSys']()
 ui = m.ui
 
-check("defaults: Drift comp. on, Ppos 'Not set', R1 3 um x 30, R2 1 um x 30, Reverse, Pass -> Soak",
+check("defaults: Drift comp. on, unset Ppos, search windows, Reverse and version-specific beam order",
       ui.driftComp.isChecked() and ui.TDS_Ppos.value() == ui.TDS_Ppos.minimum() and ui.TDS_Ppos.text() == 'Not set'
       and (ui.R1_step.value(), ui.R1_pts.value(), ui.R2_step.value(), ui.R2_pts.value()) == (3, 30, 1, 30)
       and ui.stage2CompDir.isChecked() and ui.stage2CompDir.text() == 'Reverse'
-      and ui.passOrder.isChecked() and ui.passOrder.text() == 'Pass → Soak')
+      and ui.passOrder.isChecked() == (VERSION_PARTS < (3, 6))
+      and ui.passOrder.text() == ('Pass → Soak' if VERSION_PARTS < (3, 6) else 'Soak → Pass'))
 ui.stage2CompDir.setChecked(False); ui.passOrder.setChecked(False)
 check("toggle captions follow the state", ui.stage2CompDir.text() == 'Forward' and ui.passOrder.text() == 'Soak → Pass')
 ui.stage2CompDir.setChecked(True); ui.passOrder.setChecked(True)
@@ -318,8 +323,39 @@ check("Drift comp. off: no dialog, no search, iPos unchanged, log says off",
       and "Drift comp. : off" in last_log() and len(READS) == 3 * 3)
 ui.driftComp.setChecked(True)
 reset_positions(); ui.ScanT.setChecked(False); run(); F = files()
-check("no temperature scan: no dialog, no search", not answers and len(F) == 1 and len(READS) == 3
-      and "Drift comp." not in last_log())
+if NEW_PEAK_RULES:
+    check("ScanT off: one initial search and peak settings logged", answers and len(F) == 1
+          and len(READS) == 125 and last_log().count('Peak search: Ppos') == 1
+          and 'Drift comp. : on' in last_log() and np.allclose(F[0][2], 1, atol=2e-3))
+    # Remove the controller entirely: neither initial nor repeat search may require it.
+    saved_itc, saved_peak = m.mercuryiTC, lockin.peak
+    m.mercuryiTC = None; ui.activeiTC.setChecked(False); lockin.peak = lambda: P0
+    reset_positions(ppos=ui.TDS_Ppos.minimum())
+    check("ordinary scan still rejects a missing Ppos before starting", not run()
+          and warnings and 'TDS Ppos is not set' in warnings[0])
+    for forward in (False, True):
+        ui.stage2CompDir.setChecked(forward is False)
+        reset_positions(ipos1=P0 + 0.050)
+        run(); F = files()
+        expected_stage2 = IPOS2_0 - 0.050 if forward else IPOS2_0 + 0.050
+        check(f"no iTC: stale 50 um offset removed and Stage2 compensated ({forward=})",
+              len(F) == 1 and np.isclose(F[0][0], P0) and np.isclose(F[0][1], expected_stage2)
+              and np.allclose(F[0][2], 1, atol=2e-3) and 'will not be retained' in answers[0])
+    ui.stage2CompDir.setChecked(True)
+    for mode in ('THz_Scan', '2D_THz', 'POL_2D'):
+        ui.scanMode.setCurrentText(mode); reset_positions(ipos1=P0 - 0.020)
+        run(); F = files()
+        check(f"ordinary {mode}: search once and preserve the scan offset", len(F) == 1
+              and np.isclose(F[0][0], P0 - 0.020) and last_log().count('Peak search: Ppos') == 1)
+    setup_1d(); ui.driftComp.setChecked(False); reset_positions(); run()
+    check("ordinary scan: Drift comp off disables searching without an iTC", not answers
+          and len(READS) == 3 and 'Drift comp. : off' in last_log())
+    ui.driftComp.setChecked(True)
+    m.mercuryiTC, lockin.peak = saved_itc, saved_peak
+    ui.activeiTC.setChecked(True)
+else:
+    check("no temperature scan: no dialog, no search", not answers and len(F) == 1 and len(READS) == 3
+          and "Drift comp." not in last_log())
 ui.ScanT.setChecked(True)
 
 # ---------------------------------------------------------------- stop during the search
@@ -423,7 +459,18 @@ if hasattr(ui, 'repeatPeak'):
     check("Drift comp. off disables both initial and repeat searches", not search_calls and all(f['positions'] is None for f in saved))
     ui.driftComp.setChecked(True); ui.ScanT.setChecked(False)
     saved = repeat_run()
-    check("non-temperature 1D repeats add no peak searches", not search_calls and len(saved) == 1 and saved[0]['positions'] is None)
+    if NEW_PEAK_RULES:
+        check("ordinary 1D repeats re-peak and track continuing drift", len(search_calls) == 3
+              and len(saved) == 1 and saved[0]['positions'] is not None
+              and np.allclose(saved[0]['signal'], 1, atol=2e-3))
+        check("ordinary repeat searches add no temperature/soak/beam waits", not BEAM_WAITS
+              and EVENTS.count('soak') == 0 and EVENTS.count('pass') == 1)
+        ui.repeatPeak.setChecked(False); saved = repeat_run()
+        check("ordinary Re-peak off keeps just the initial search", len(search_calls) == 1
+              and saved[0]['positions'] is None and np.all(saved[0]['signal'][0, 0, :, 1, 0, 0] < 0.8))
+        ui.repeatPeak.setChecked(True)
+    else:
+        check("non-temperature 1D repeats add no peak searches", not search_calls and len(saved) == 1 and saved[0]['positions'] is None)
     ui.ScanT.setChecked(True); ui.scanRepNO2.setValue(1)
     saved = repeat_run()
     check("Stage2 repeat count one adds no extra search", search_calls == [10, 20] and all(f['positions'] is None for f in saved))
@@ -464,6 +511,110 @@ if hasattr(ui, 'repeatPeak'):
 
     lockin.peak, lockin.get_x = old_peak, old_get_x
     m.compensate_temperature_drift = old_compensate
+
+if ANGLE_PEAK_RULES:
+    # A real angular dependence exposes both missing first-sweep searches and searches
+    # that silently return the rotaries to the original polarization.
+    setup_1d(); ui.ScanT.setChecked(False); ui.AutoBlock.setChecked(True)
+    ui.driftComp.setChecked(True); ui.repeatPeak.setChecked(True)
+    ui.scanRepNO2.setValue(2); ui.ScanRepNO_R1.setValue(1); ui.ScanRepNO_R2.setValue(1)
+    ui.Rot_stages_couple.setChecked(True)
+    for n, start, step in ((1, 10, 10), (2, 20, 5), (3, 30, 5)):
+        getattr(ui, f'activeRot{n}').setChecked(n != 3)
+        setattr(m, f'rotary{n}', FakeStage())
+        getattr(ui, f'iRot{n}').setValue(start)
+        getattr(ui, f'rotary{n}Step').setValue(step)
+        getattr(ui, f'rotary{n}StepNO').setValue(3 if n != 3 else 99)
+    lockin.peak = lambda: P0 + (m.rotary1.pos - 10) * 0.0004 + (
+        (m.rotary3.pos - 30) * 0.0004 if ui.activeRot3.isChecked() else 0)
+    angle_searches = []
+    original_search = m.get_TDS_peak_pos
+    def capture_angle_search(*args, **kwargs):
+        angle_searches.append((m.rotary1.pos, m.rotary2.pos, m.rotary3.pos))
+        return original_search(*args, **kwargs)
+    m.get_TDS_peak_pos = capture_angle_search
+
+    def angle_run():
+        angle_searches.clear(); reset_positions()
+        run()
+        saved = []
+        for path in sorted(glob.glob(os.path.join(TMP, '*.h5'))):
+            with h5py.File(path, 'r') as h:
+                saved.append((h['lockin1_X'][()], h['repeat_scan_positions_mm'][()] if 'repeat_scan_positions_mm' in h else None))
+        return saved
+
+    expected_angles = [(10, 20, 0), (20, 25, 0), (30, 30, 0)]
+    saved = angle_run()
+    check('angle change: three angles x two sweeps search at every correct angle',
+          angle_searches == [angle for angle in expected_angles for _ in range(2)])
+    check('angle change: first and repeat acquisitions remain at the physical peak',
+          len(saved) == 1 and np.allclose(saved[0][0], 1, atol=2e-3))
+    check('angle change: log distinguishes new angles from Stage2 repeats',
+          last_log().count('Angle peak search:') == 2 and last_log().count('Repeat peak search:') == 3)
+    check('angle change: each sweep saves its peak and compensated Stage2 start',
+          saved[0][1] is not None and np.allclose(saved[0][1][0, 0, :, :, 0, 0], [[P0, P0 + .004, P0 + .008]] * 2)
+          and np.allclose(saved[0][1][0, 0, :, :, 0, 1], [[IPOS2_0, IPOS2_0 - .004, IPOS2_0 - .008]] * 2))
+    check('angle change: no added beam pass, temperature or soak wait',
+          EVENTS.count('pass') == 1 and not BEAM_WAITS and EVENTS.count('soak') == 0)
+
+    ui.repeatPeak.setChecked(False)
+    saved = angle_run()
+    check('Re-peak OFF still searches once per new angle and saves all coordinates',
+          angle_searches == expected_angles and np.allclose(saved[0][0], 1, atol=2e-3)
+          and saved[0][1] is not None and 'Repeat peak search:' not in last_log())
+    ui.scanRepNO2.setValue(1)
+    saved = angle_run()
+    check('one Stage2 sweep still searches before every changed angle',
+          angle_searches == expected_angles and np.allclose(saved[0][0], 1, atol=2e-3) and saved[0][1] is not None)
+    ui.ScanRepNO_R2.setValue(2)
+    saved = angle_run()
+    check('polarization repeat searches again when returning from last to first angle',
+          angle_searches == expected_angles * 2 and np.allclose(saved[0][0], 1, atol=2e-3))
+    ui.ScanRepNO_R2.setValue(1); ui.ScanT.setChecked(True)
+    saved = angle_run()
+    check('temperature points each start searching at the first planned angle',
+          angle_searches == expected_angles * 2 and len(saved) == 2
+          and all(np.allclose(signal, 1, atol=2e-3) for signal, _ in saved))
+    ui.ScanT.setChecked(False); ui.driftComp.setChecked(False)
+    saved = angle_run()
+    check('Drift OFF disables angular and repeat search', not angle_searches and saved[0][1] is None)
+    ui.driftComp.setChecked(True); ui.repeatPeak.setChecked(True); ui.scanRepNO2.setValue(2)
+    ui.Rot_stages_couple.setChecked(False)
+    ui.rotary1StepNO.setValue(2); ui.rotary2StepNO.setValue(2)
+    ui.rotary3StepNO.setValue(1)
+    saved = angle_run()
+    independent = [(10, 20, 0), (10, 25, 0), (20, 20, 0), (20, 25, 0)]
+    check('independent angular states search in acquisition order at their actual angles',
+          angle_searches == [angle for angle in independent for _ in range(2)]
+          and np.allclose(saved[0][0], 1, atol=2e-3))
+
+    # Calibration's first angle can differ from the UI starting angle.
+    ui.Rot_stages_couple.setChecked(True); ui.pol_cali_mode.setChecked(True)
+    m.cali_table = {'rot1_cali': [15, 25], 'rot2_cali': [20, 25], 'rot3_cali': []}
+    saved = angle_run()
+    check('calibrated scan searches at interpolated angles, including its initial search',
+          angle_searches == [(15, 20, 0)] * 2 + [(25, 25, 0)] * 2
+          and np.allclose(saved[0][0], 1, atol=2e-3))
+    ui.pol_cali_mode.setChecked(False); m.cali_table = None
+    ui.activeRot3.setChecked(True); ui.rotary3StepNO.setValue(2)
+    saved = angle_run()
+    check('checked Rot3 participates in each search at the current angle',
+          angle_searches == [(10, 20, 30)] * 2 + [(20, 25, 35)] * 2
+          and np.allclose(saved[0][0], 1, atol=2e-3))
+    ui.activeRot3.setChecked(False); ui.rotary3StepNO.setValue(1)
+
+    # Other scan modes retain the initial search only.
+    for mode in ('THz_Scan', '2D_THz', 'POL_2D'):
+        ui.scanMode.setCurrentText(mode)
+        saved = angle_run()
+        check(f'{mode}: angular change adds no new search', len(angle_searches) == 1 and saved[0][1] is None)
+    setup_1d(); ui.scanRepNO2.setValue(1); ui.repeatPeak.setChecked(False)
+    lockin.stop_at = 122 + 3 + 20
+    saved = angle_run(); lockin.stop_at = None
+    check('stop during angular search keeps first-angle data and leaves later data NaN',
+          len(saved) == 1 and np.isfinite(saved[0][0][:, :, :, :, 0, :]).all()
+          and np.isnan(saved[0][0][:, :, :, :, 1:, :]).all() and not m.h5_file and m.flipmount.p == 2)
+    m.get_TDS_peak_pos = original_search
 
 print(f"\n{sum(ok for _, ok in results)}/{len(results)} passed")
 sys.exit(0 if all(ok for _, ok in results) else 1)

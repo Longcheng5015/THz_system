@@ -4,7 +4,7 @@ Companion to `OPTP_dev_log.md`. The dev log records **what was changed**; this f
 **what is still open**. Every item here should either get done or get an explicit decision to
 drop it - do not let items rot silently.
 
-Last updated: 2026-10-04 (multiline Lock-in tips and new-version control sync)
+Last updated: 2026-10-06 (v4.01 display-only live scan progress)
 
 **Working rules for this folder**
 - All `.py` and `.ui` files here are **CRLF throughout**. `sed -i` under MSYS/Git-Bash silently
@@ -14,6 +14,152 @@ Last updated: 2026-10-04 (multiline Lock-in tips and new-version control sync)
 - No feature is complete until `OPTP_dev_log.md` has an entry for it (see `CLAUDE.md`).
 - Shared libraries live in `inst_libs/` and are used by MO_System and OPTP_image_System too.
   Back them up to `inst_libs/backup_before_<reason>/` with a README before changing them.
+
+---
+
+## v4.01 - Early rotary peak-search progress - IMPLEMENTED, lab check open
+
+Current entry point: OPTP_system_iTC_v4.01.py with OPTP_iTC_main_v4.01.ui; v4.0 is preserved.
+After turning to a search angle, actual positions and rotary Curr. NO are signalled before peak
+acquisition. Initial/current-angle/repeat searches keep their previous physical order and conditions.
+- [ ] On the next v4.01 scan, confirm the lower Live Progress box mirrors terminal output while
+  the upper ScanLog retains its normal saved key events. Live Progress is display-only and resets on Run.
+- [ ] Launch v4.01 and confirm Run refreshes Save Name before any preparation wait; screenshots
+  during preparation and acquisition have fresh capture timestamps and do not overwrite earlier PNGs.
+- [ ] On hardware, scan coupled Rot1/Rot2 states in 1D_THz. During the first search at each new angle,
+  confirm Curr. NO and rotary positions already identify that angle, including Re-peak and angle-cycle restarts.
+- [ ] Diagnose Stage2 relative arrows on the shared controller/different channel: Stage1 relative moves
+  and Stage2 Move to work, but Stage2 arrow logs show unchanged position. Root cause is not established;
+  the absolute-target workaround has not been implemented.
+- [ ] Verify automatic/manual Home final physical position and refreshed readback after the 1-second wait.
+  Do not assume the user-reported 0/110 difference was only cached position.
+
+## v4.0 - Goto T thread replacement - IMPLEMENTED, lab check open
+
+New entry point: OPTP_system_iTC_v4.0.py with OPTP_iTC_main_v4.0.ui; v3.9 is preserved.
+The old stabilization thread must exit before a new setpoint is sent or its QThread is replaced.
+Polling waits are interruptible; blocked communication rejects replacement without losing the worker.
+Stabilized(bool) is separate from native QThread.finished; scans join the temperature worker.
+- [ ] On hardware, with a 5-10 second temperature polling interval, repeat Goto T and confirm no
+  crash, correct latest accepted setpoint, and normal temperature indicator/scan progression.
+- [ ] On hardware, check both new manual Home buttons perform actual re-homing (including an
+  already-homed axis), update Curr. Pos., and remain disabled during scanning.
+- [ ] Window-close/application-exit thread cleanup remains a separate outstanding issue; this
+  change addresses the reported Goto T crash path only.
+
+## v3.9 - Local simplification - VERIFIED with simulated instruments
+
+Current OPTP entry point: OPTP_system_iTC_v3.9.py with OPTP_iTC_main_v3.9.ui. v3.8 is preserved.
+The update combines repetitive display code, removes the redundant movement-result wrapper and unused
+imports/obsolete commented examples, and reduces duplicate console output. Stage2 manual-move messages
+now use mm. Scan/peak/temperature logic, timing settings, instrument connection/cleanup and HDF5/JSON
+formats are retained. Only the UI window title changes. JSON schema remains 1 (same fields as v3.8).
+
+Application Python: 4059 -> 3985 lines (-74, including 27 pure-comment and 4 blank lines). Tests and
+records are separate. Functional checks: drift 84, failures 30, rotary 20, Lock-in/native UI 52,
+JSON/native UI 36 and screenshot/native UI 14; all 236 pass. The comparison test additionally passes
+17 checks spanning 7531 input cases and verifies unchanged non-display method structure under the
+explicitly allowed simplifications. No real instruments were operated.
+- [ ] Run the next ordinary lab scan with v3.9 and confirm normal UI progress, current-angle/repeat
+  tracking and saved data. The earlier hardware-check items below also apply to the inherited features.
+
+---
+
+## v3.8 - First sweep after changing angle - IMPLEMENTED, lab check open
+
+With Drift comp. ON, 1D_THz now searches before the first sweep at each changed active rotary angle,
+even with Re-peak OFF or Stage2 Repeat = 1. Re-peak controls later same-angle Stage2 repeats. All searches
+use the current planned polarization, including calibration angles; the initial search resets to the
+first planned angle at each temperature. No extra temperature/soak/beam waits are introduced. Drift OFF
+and other scan modes retain their documented behavior. Per-sweep coordinates are saved for angular
+tracking even when repeated searches are off. New log events distinguish Angle from Repeat searches.
+
+The previous controller failed 12 of the 17 new angular cases. Updated drift/angle tests pass 84/84,
+scan-failure checks 30/30 and selected-axis coupling 20/20; all use simulated instruments. No real hardware
+was operated. v3.7 and older files are preserved. Other systems have no applicable enabled OPTP-style
+workflow; MO's legacy temperature calibration stays unchanged under the user's earlier MO exclusion.
+- [ ] On hardware, run 1D_THz over multiple coupled angles with Stage2 Repeat = 2. Confirm the sequence
+  search A -> A1 -> search A -> A2 -> search B -> B1 -> search B -> B2, with each search at that angle.
+- [ ] With Re-peak OFF (or Repeat = 1), confirm search before each changed angle and verify corrected
+  Stage1/Stage2 values against repeat_scan_positions_mm, including a polarization-cycle restart.
+
+---
+
+## v3.8 - Scan recipe JSON and connection readback - IMPLEMENTED, lab check open
+
+Imp. Conf. / Exp. Conf. restore/save scan inputs, temperature lists and calibration-file references.
+JSON format OPTP.scan_config / schema 1 excludes hardware settings and live readouts. Import validates
+everything before updating the UI/model with signals blocked. It never connects, moves, heats or sends
+instrument settings; scan-time import is disabled. Export is available during scanning and saves current
+UI positions, including re-peak updates. Calibration files must remain accessible when importing.
+
+Conn. Instr. now queries SENS?, OFLT? and PHAS? on each selected SR830, including already-connected
+devices. Display updates cannot echo commands. Disconnected defaults stay unchanged; failed reads show
+unknown fields. At the user's request, connection preserves the current/imported Wait(ms) and multipliers
+rather than recalculating them from the hardware time constant.
+
+Hidden native/fake-instrument checks: JSON configuration 36/36, Lock-in controls/readback 52/52.
+Acquisition and peak-search methods are unchanged. Older versions and the other three systems are unchanged.
+- [ ] Export a typical lab recipe, change its inputs, then import it and compare stage/rotary settings,
+  ordered temperature points, search controls and loaded calibration data before running it.
+- [ ] Set different sensitivity, time constant and phase values on the two SR830 panels, connect, and
+  confirm both displays match without altering the panels or the configured acquisition waits.
+
+---
+
+## v3.8 - Immediate 1-degree Phase arrows - IMPLEMENTED, lab check open
+
+The new OPTP v3.8 Python/UI pair is copied from v3.7, which remains unchanged. Both Phase controls
+show arrows with 1-degree steps; clicks write and read back immediately. Typed decimal edits still
+commit on Enter or focus loss, with 0.01-degree precision and the automatic degree suffix. Connection
+and programmatic readback do not write settings. Controls remain disabled during scanning.
+
+Only one functional Python line was added, connecting committed value changes to the existing handler.
+The Phase/X minimum widths now accommodate native Windows arrow buttons and full numeric values.
+Hidden native/fake-instrument checks: test_lockin_controls.py optp --native-preview 45/45;
+the unchanged v3.7 also passes its 28/28 non-layout checks. Acquisition methods are identical to v3.7.
+- [ ] On each connected SR830, click both Phase arrows and compare the immediate panel/readback
+  change with the 1-degree step. Type a decimal and confirm Enter and focus loss both apply it.
+  Confirm no setting is sent while typing or merely connecting, including around phase wrapping.
+
+---
+
+## v3.7 - Peak tracking and selected-axis coupling - IMPLEMENTED, lab check open
+
+Drift comp. now enables peak search independently of ScanT. Re-peak controls later Stage2 repeats
+in 1D_THz, still under the Drift comp. master switch. A fixed-Stage1 1D_THz scan follows the found
+peak directly; Stage2 compensates the actual Stage1 correction, including any removed initial offset.
+Other modes retain the scan-window offset. Beam/soak ordering and temperature-observer replacement
+are unchanged. With ScanT off, a manual temperature ramp does not block the ordinary scan.
+
+Selected-axis coupled planning is enabled in OPTP v3.7, MO v2.7, Imaging v1.8 and THz Emission v1.6.
+Unchecked axes do not constrain coupled point counts and are not moved. Independent scans and older
+planner callers retain their previous behavior. MO and the other two systems have no new peak workflow.
+
+Fake-instrument checks: drift 67/67, failures 30/30, coupled scans 20/20 in each system (177/177 total).
+The old v3.5 drift suite passes 58/58. Remaining hardware checks:
+- [ ] With ScanT off, Drift comp. ON and Re-peak ON, a 1D_THz Stage2 repeat of 3 searches before
+  each sweep. Re-peak OFF searches only initially; Drift comp. OFF performs no automatic search.
+- [ ] With an intentionally offset fixed iPos1, confirm the acquired 1D_THz target follows the found
+  peak and Stage2 follows the full correction with the proper mounting sign. Compare saved
+  repeat_scan_positions_mm coordinates with the physical stages and the measured waveform.
+- [ ] Confirm ordinary THz_Scan / 2D_THz / POL_2D initial searches keep the intended window offset.
+- [ ] On each setup, check Rot1 and Rot2 with matching counts and different angular steps while Rot3
+  is unchecked with a different count. Confirm paired positions and no Rot3 movement. Check that
+  enabling Rot3 with a mismatched count rejects the plan, and matching counts include all three.
+
+---
+
+## v3.7 - Interface PNG screenshots - IMPLEMENTED and checked without instruments
+
+Current versions are OPTP v3.7, MO v2.7, OPTP Imaging v1.8 and THz Emission v1.6.
+Each was copied from its previous Python/UI pair; the prior files are unchanged.
+Screenshot is available during/after scans and saves the visible interface beside the current/latest
+HDF5 file using the same basename. Repeated clicks replace the PNG; before any scan file exists,
+it follows that system's time/mode/suffix naming in the selected data folder. Failed writes retain
+the previous PNG. Hidden native Qt checks: `tests/test_ui_screenshot.py`: optp 14/14,
+mo/img/thz 12/12 each. Acquisition methods and shared drivers are unchanged.
+The pending instrument checks and deferred temperature-thread issue below still apply.
 
 ---
 

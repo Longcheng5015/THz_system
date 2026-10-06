@@ -310,6 +310,8 @@ reset(); ui.ScanRepNO_R1.setValue(2); ui.ScanRepNO_R2.setValue(2)
 rejected_before_start('rotary repeat conflict rejected before worker starts', 'cannot both be greater than 1')
 
 reset(temperature=True); ui.Rot_stages_couple.setChecked(True); ui.rotary2StepNO.setValue(2)
+for axis in (1, 2, 3):
+    getattr(ui, f'activeRot{axis}').setChecked(True); setattr(m, f'rotary{axis}', Stage())
 rejected_before_start('coupled point-count mismatch rejected before temperature wait', 'same number of states')
 
 reset(temperature=True, drift=True); m.stage2.travel_limits = lambda: (0.0, 10.001)
@@ -341,6 +343,8 @@ check('valid independent rotary plan still accepts wrapped angles', np.all(data[
       and data['lockin1_X'].size == 12 and m.rotary1.pos == 0)
 
 reset(); ui.Rot_stages_couple.setChecked(True)
+for axis in (1, 2, 3):
+    getattr(ui, f'activeRot{axis}').setChecked(True); setattr(m, f'rotary{axis}', Stage())
 for axis in (1, 2, 3): getattr(ui, f'rotary{axis}StepNO').setValue(2)
 data, paths, log = run()
 check('valid coupled plan still acquires all states', data['lockin1_X'].size == 6 and np.all(data['lockin1_X'] == 1))

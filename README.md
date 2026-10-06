@@ -8,35 +8,41 @@ Current source versions as of **2026-10-04**. Each application has its own Pytho
 
 | System | Latest version | Python entry point | Qt Designer UI |
 | --- | --- | --- | --- |
-| OPTP | **v3.6** | [OPTP_system_iTC_v3.6.py](OPTP_System/OPTP_system_iTC_v3.6.py) | [OPTP_iTC_main_v3.6.ui](OPTP_System/OPTP_iTC_main_v3.6.ui) |
-| Magneto-optical (MO) | **v2.6** | [MO_system_iTC_v2.6.py](MO_System/MO_system_iTC_v2.6.py) | [MO_system_iTC_v2.6.ui](MO_System/MO_system_iTC_v2.6.ui) |
-| OPTP Imaging | **v1.7** | [OPTP_iTC_image_v1.7.py](OPTP_image_System/OPTP_iTC_image_v1.7.py) | [OPTP_iTC_image_v1.7.ui](OPTP_image_System/OPTP_iTC_image_v1.7.ui) |
-| THz Emission | **v1.5** | [THz_emission_system_iTC_v1.5.py](THz_emission_system/THz_emission_system_iTC_v1.5.py) | [THz_emission_system_iTC_v1.5.ui](THz_emission_system/THz_emission_system_iTC_v1.5.ui) |
+| OPTP | **v3.9** | [OPTP_system_iTC_v3.9.py](OPTP_System/OPTP_system_iTC_v3.9.py) | [OPTP_iTC_main_v3.9.ui](OPTP_System/OPTP_iTC_main_v3.9.ui) |
+| Magneto-optical (MO) | **v2.7** | [MO_system_iTC_v2.7.py](MO_System/MO_system_iTC_v2.7.py) | [MO_system_iTC_v2.7.ui](MO_System/MO_system_iTC_v2.7.ui) |
+| OPTP Imaging | **v1.8** | [OPTP_iTC_image_v1.8.py](OPTP_image_System/OPTP_iTC_image_v1.8.py) | [OPTP_iTC_image_v1.8.ui](OPTP_image_System/OPTP_iTC_image_v1.8.ui) |
+| THz Emission | **v1.6** | [THz_emission_system_iTC_v1.6.py](THz_emission_system/THz_emission_system_iTC_v1.6.py) | [THz_emission_system_iTC_v1.6.ui](THz_emission_system/THz_emission_system_iTC_v1.6.ui) |
 
 ## Shared capabilities
 
 - **Instrument configuration:** editable VISA addresses, controller serial numbers and channels in the Inst. Config. tab; device discovery and connection settings saved separately for each system.
-- **Lock-in settings:** X-channel Auto Zero and an editable decimal Phase field for each SR830. Enter a number; the degree symbol is added automatically. Phase is read on connection and after edits. The controls have multiline help and are disabled during scans.
+- **Lock-in settings:** X-channel Auto Zero and an editable decimal Phase field for each SR830. Enter a number; the degree symbol is added automatically. Connecting reads sensitivity, time constant and phase without writing defaults or changing acquisition Wait(ms) and multipliers. Failed readbacks show unknown settings; before connection, existing defaults remain. Phase is also read back after edits. The controls have multiline help and are disabled during scans.
 - **Acquisition:** SR830 X/Y readings, linear and rotary stage scans, repeat measurements, temperature sequences, and live time-domain/frequency-domain plots where supported by the selected mode.
+- **Coupled rotary scans:** pair the checked axes by point index, with equal point counts and individual starting angles/steps. Rot1 and Rot2 can scan together with Rot3 unchecked, regardless of Rot3's point count; unchecked axes receive no movement commands. Independent mode retains its Cartesian scan pattern. Calibration remains driven by Rot2.
 - **Temperature control:** Oxford Mercury iTC setpoints, stability monitoring, heater/PID controls and temperature display.
 - **Beam control:** manual Block/Pass and AutoBlock through a Thorlabs flip mount, with a selectable physical Pass channel. Temperature/soak timing follows each system's scan logic.
 - **Pump power:** PM100D live display in mW, wavelength and range settings, Zero, and optional Record. With Record and AutoBlock enabled, the program waits for the meter to settle and averages readings while the beam is blocked, just before passing it at each temperature point, or once for a scan without temperature points. Results are saved with the measurement data.
+- **Interface screenshots:** Screenshot captures the visible application interface, including plots and the selected tabs, during or after a scan. It saves beside the current/latest data file with the same basename and a `.png` extension. Repeated clicks update that screenshot; before the first scan, it uses the selected data folder and the system's time/mode/suffix naming convention.
+- **Scan configurations:** **Imp. Conf. / Exp. Conf.** beside Screenshot load/save JSON recipes for each system's stage/rotary scan settings, ordered temperature list, acquisition waits, beam controls and power-record settings, plus its own additional scan controls. Import validates the complete recipe and referenced calibration file, then restores the UI/model without operating instruments. Hardware settings, live readouts and data paths are excluded. Each system has a distinct format identifier to prevent cross-system imports. Import is disabled during scans; export remains available and saves current UI values. Calibration files remain external and must be available when importing.
 - **Data and logs:** HDF5 measurement files and a daily `ScanLog_YYYY-MM-DD.txt` containing scan conditions and progress events.
 
 ## System features
 
-### OPTP — v3.6
+### OPTP — v3.9
 
 Optical pump–THz probe spectroscopy with Stage1 as the THz detection delay and Stage2 as the pump delay.
 
+v3.9 simplifies display-update code and redundant branches while retaining v3.8's scan behavior, UI defaults and data/configuration formats. Repeated per-point success/plot messages are reduced; errors, peak results and key scan events remain visible.
+
 - **Scan modes:** `THz_Scan` for THz waveforms, `1D_THz` for pump-delay traces at a fixed THz detection position, `2D_THz` for a full THz waveform at each pump delay, and `POL_2D` for polarization scans.
-- **Temperature drift compensation:** a two-round peak search around the configured `TDS Ppos` updates the Stage1 reference and compensates Stage2 according to its Forward/Reverse direction.
-- **Repeat peak search:** `Re-peak: ON` is the default. With this toggle enabled, a search runs before Stage2 repeats 2, 3, etc. when **`1D_THz`, temperature scanning, Drift comp., and Stage2 Repeat > 1** are all enabled. Each search updates subsequent scan positions. It does not repeat the temperature wait, sample soak or beam-settle wait. `THz_Scan` does not trigger this repeat feature.
+- **Peak tracking:** **Drift comp.** enables the two-round search around `TDS Ppos` in every mode, with or without temperature scanning. The initial search runs before acquisition, once per temperature when ScanT is active. In `1D_THz`, changing active rotary angles also triggers a search before the first sweep at the new angles, even with Stage2 Repeat = 1 or Re-peak OFF. Searches use the current planned angles, including interpolated calibration angles. A fixed-Stage1 `1D_THz` scan follows the found peak directly; other modes and multi-point Stage1 scans retain their window offset. Stage2 compensates the actual Stage1 correction according to Forward/Reverse. Drift comp. OFF disables all automatic searches.
+- **Repeat peak search:** `Re-peak: ON` is the default. With **Drift comp. ON, `1D_THz`, and Stage2 Repeat > 1**, it searches before repeats 2, 3, etc. at the current angle, independently of ScanT. OFF skips these same-angle repeat searches while retaining the initial and angle-change searches. Each search updates subsequent scan positions without repeating the temperature wait, sample soak or beam-settle wait. Other modes, including `THz_Scan`, `2D_THz` and `POL_2D`, retain their initial search only.
 - **Beam-heating wait:** Peak search settings offer `Pass → Soak` and `Soak → Pass`. With AutoBlock and temperature scanning enabled, `Beam settle (min)` adds a full extra wait after both sample soak and beam pass, before peak search or acquisition. Default: **5 minutes**; 0 skips this extra wait.
-- **Lock-in controls:** each SR830 has **Auto Zero** for its X-channel auto offset, plus an editable decimal Phase field. Connecting reads the instrument's current phase; committing an edit writes it and reads it back. Auto Zero refreshes the actual X reading. Both controls are disabled during a scan; front-panel versus X-readback behavior after Auto Zero remains a hardware verification item.
+- **Lock-in controls:** each SR830 has **Auto Zero** for its X-channel auto offset, plus an editable decimal Phase field. Phase arrows apply **1-degree steps immediately**; typed decimals commit on Enter or focus loss with 0.01-degree precision. Connection reads **sensitivity, time constant and phase** without writing defaults, and preserves the current acquisition waits and multipliers. Failed readbacks show unknown settings. Auto Zero refreshes the actual X reading. Both controls are disabled during a scan; front-panel versus X-readback behavior after Auto Zero remains a hardware verification item.
+- **Scan configurations:** OPTP recipes also include peak tracking, repeat peak search and beam-settle timing. Export uses current UI values, including positions updated by re-peaking.
 - **Scan handling:** scan plans are validated before startup and compensated travel is checked after searching. Movement/Lock-in communication errors and temperature-start failures abort through file cleanup. Unacquired samples are NaN. Lock-in Realtime buttons switch off for scanning and remain off afterwards; scan charts still update, and active-instrument checkboxes retain their settings.
 
-### MO — v2.6
+### MO — v2.7
 
 Magneto-optical measurements using a Thorlabs linear Stage1 and Newport PM500 Stage2, with polarization control and temperature sequences.
 
@@ -45,7 +51,7 @@ Magneto-optical measurements using a Thorlabs linear Stage1 and Newport PM500 St
 - Temperature stabilization followed by a configurable sample-soak wait. Routine MO scans retain their existing behavior; this version adds no new peak-search workflow.
 - Integrated PM100D display, configuration, Zero and pump-power Record alongside AutoBlock and ScanLog. Acquisition supports operation without Lock-in 2; disconnected Lock-in channels retain zero placeholders in this system's data.
 
-### OPTP Imaging — v1.7
+### OPTP Imaging — v1.8
 
 Spatial THz/OPTP acquisition with an XY raster and a live image display.
 
@@ -54,7 +60,7 @@ Spatial THz/OPTP acquisition with an XY raster and a live image display.
 - **Live image:** select Lock-in 1/2 X, Y or R, and display Peak-Peak, Max, Min, Mean or a chosen trace point. Changing these selectors redraws acquired pixels without another measurement.
 - PM100D controls, pump-power Record, AutoBlock, temperature sequences and ScanLog are integrated. Automatic temperature peak search is currently disabled in this system.
 
-### THz Emission — v1.5
+### THz Emission — v1.6
 
 THz emission measurements using a **PI N-565.360 / E-861** Stage1 and a Thorlabs Stage2.
 
@@ -89,30 +95,30 @@ From the repository root, run the command for the desired system:
 **OPTP**
 
 ```powershell
-python OPTP_System/OPTP_system_iTC_v3.6.py
+python OPTP_System/OPTP_system_iTC_v3.9.py
 ```
 
 **MO**
 
 ```powershell
-python MO_System/MO_system_iTC_v2.6.py
+python MO_System/MO_system_iTC_v2.7.py
 ```
 
 **OPTP Imaging** — run from its own folder because this entry point loads its UI relative to the working directory.
 
 ```powershell
 Push-Location OPTP_image_System
-python OPTP_iTC_image_v1.7.py
+python OPTP_iTC_image_v1.8.py
 Pop-Location
 ```
 
 **THz Emission**
 
 ```powershell
-python THz_emission_system/THz_emission_system_iTC_v1.5.py
+python THz_emission_system/THz_emission_system_iTC_v1.6.py
 ```
 
-Before a measurement, set the addresses/channels for the actual setup in **Inst. Config.**, select the required instruments, connect them, and configure the scan mode, positions, repeats and save directory. For temperature-dependent OPTP repeat tracking, use **`1D_THz`** and the conditions listed above.
+Before a measurement, set the addresses/channels for the actual setup in **Inst. Config.**, select the required instruments, connect them, and configure the scan mode, positions, repeats and save directory. OPTP peak tracking requires a valid **TDS Ppos** and active, connected Stage1 and Lock-in 1, even with ScanT off. For repeat tracking, use **`1D_THz`** and the conditions listed above.
 
 ## Measurement files
 
@@ -127,7 +133,7 @@ The four measurement applications save **`.h5` HDF5 files**, readable with Pytho
 
 The save directory can be selected in the GUI. ScanLog is appended in the selected data folder.
 
-For OPTP scans with repeat peak search enabled, **`repeat_scan_positions_mm`** stores each sweep's commanded Stage1 position, Stage2 start and TDS peak. Use this dataset when reconstructing absolute coordinates of later repeats: the original `iPos1`/`iPos2` scalars describe the first sweep. Dataset attributes document the axes and columns.
+For OPTP `1D_THz` scans with repeat or angle-change peak tracking, **`repeat_scan_positions_mm`** stores each sweep's commanded Stage1 position, Stage2 start and TDS peak, including the first sweep at each angle. Use this dataset when reconstructing absolute coordinates of later angles/repeats: the original `iPos1`/`iPos2` scalars describe the first sweep. Dataset attributes document the axes and columns.
 
 ## Auxiliary tools and shared code
 
@@ -149,14 +155,29 @@ Edit the matching `.ui` in Qt Designer and keep it alongside its Python entry po
 | OPTP Imaging | [OPTP_image_dev_log.md](OPTP_image_System/OPTP_image_dev_log.md) |
 | THz Emission | [THz_emission_dev_log.md](THz_emission_system/THz_emission_dev_log.md) |
 
-The following checks target OPTP v3.6 using simulated instruments and temporary files:
+The following checks use simulated instruments or instrument-free UI rendering and temporary files:
 
 ```powershell
 python OPTP_System/tests/test_lockin_controls.py
-python OPTP_System/tests/test_scan_failures.py 3.6
-python OPTP_System/tests/test_drift_comp.py 3.6
+python OPTP_System/tests/test_scan_config.py --native-preview
+python OPTP_System/tests/test_scan_config.py mo --native-preview
+python OPTP_System/tests/test_scan_config.py img --native-preview
+python OPTP_System/tests/test_scan_config.py thz --native-preview
+python OPTP_System/tests/test_scan_failures.py 3.9
+python OPTP_System/tests/test_drift_comp.py 3.9
+python OPTP_System/tests/test_v39_refactor.py
+python OPTP_System/tests/test_rotary_coupling.py optp
+python OPTP_System/tests/test_rotary_coupling.py mo
+python OPTP_System/tests/test_rotary_coupling.py img
+python OPTP_System/tests/test_rotary_coupling.py thz
+python OPTP_System/tests/test_ui_screenshot.py optp --native-preview
+python OPTP_System/tests/test_ui_screenshot.py mo --native-preview
+python OPTP_System/tests/test_ui_screenshot.py img --native-preview
+python OPTP_System/tests/test_ui_screenshot.py thz --native-preview
 ```
 
-The Lock-in control checks also accept `mo`, `img` or `thz` to select the corresponding latest system, for example `python OPTP_System/tests/test_lockin_controls.py mo`. Add `--native-preview` to check the Windows layout.
+The Lock-in control checks also accept `mo`, `img` or `thz` to select the corresponding system, for example `python OPTP_System/tests/test_lockin_controls.py mo`. Add `--native-preview` to check the Windows layout.
 
-They cover Lock-in Auto Zero/Phase, scan failure cleanup, temperature drift compensation, beam timing and repeat peak search. Instrument libraries still require the environment described above. Hardware verification status and pending work are tracked in [OPTP_handoff.md](OPTP_System/OPTP_handoff.md).
+The v3.9 refactor check compares UI update order, zero/missing/None handling, unit conversion, exceptions, UI defaults and acquisition structure against the preserved v3.8 source without operating instruments.
+
+They cover Lock-in connection readback and Auto Zero/Phase, JSON scan recipes, scan failure cleanup, peak tracking with and without temperature scanning, beam timing, repeat peak search, selected-axis coupling and PNG capture/naming/replacement. The Lock-in, configuration, rotary and screenshot checks support all four current versions listed above. Instrument libraries still require the environment described above. Hardware verification status and pending work are tracked in [OPTP_handoff.md](OPTP_System/OPTP_handoff.md).

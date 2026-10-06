@@ -20,7 +20,7 @@
    <enum>Qt::FocusPolicy::NoFocus</enum>
   </property>
   <property name="windowTitle">
-   <string>OPTP System v3.6</string>
+   <string>OPTP System v4.01</string>
   </property>
   <property name="styleSheet">
    <string notr="true">*[mytype=&quot;container&quot;] {
@@ -152,8 +152,26 @@ QProgressBar::chunk {
        <layout class="QGridLayout" name="gridLayout_26">
         <item row="0" column="1">
          <layout class="QVBoxLayout" name="verticalLayout_49" stretch="0,5,7">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="topMargin">
+           <number>8</number>
+          </property>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_clearDisplay" stretch="0,1,1">
+           <layout class="QHBoxLayout" name="horizontalLayout_clearDisplay" stretch="0,0,0,0,1,1">
+            <property name="leftMargin">
+             <number>6</number>
+            </property>
+            <property name="topMargin">
+             <number>6</number>
+            </property>
+            <property name="rightMargin">
+             <number>6</number>
+            </property>
+            <property name="bottomMargin">
+             <number>6</number>
+            </property>
             <item>
              <widget class="QPushButton" name="clearLockinDisplay">
               <property name="sizePolicy">
@@ -185,6 +203,113 @@ QProgressBar::chunk {
              </widget>
             </item>
             <item>
+             <widget class="QPushButton" name="saveScreenshot">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>120</width>
+                <height>30</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>10</pointsize>
+               </font>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Screenshot&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Save the visible application interface as a PNG.&lt;br/&gt;
+            Use the current/latest data file folder and name.&lt;br/&gt;
+            Each capture adds its current date/time and saves a separate screenshot.&lt;br/&gt;
+            Before the first scan, use the data folder and&lt;br/&gt;
+            current time, scan mode and filename suffix.&lt;br/&gt;
+            Available while scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Screenshot</string>
+              </property>
+              <property name="icon">
+               <iconset>
+                <normaloff>camera.svg</normaloff>camera.svg</iconset>
+              </property>
+              <property name="mytype" stdset="0">
+               <string>clickable_button</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="importScanConfig">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>110</width>
+                <height>30</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>10</pointsize>
+               </font>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Imp. Conf.&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Restore scan parameters from a JSON file.&lt;br/&gt;
+Validates the full configuration before applying it.&lt;br/&gt;
+Restores the temperature list and calibration file.&lt;br/&gt;
+Does not move stages or change instrument settings.&lt;br/&gt;
+Available when not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Imp. Conf.</string>
+              </property>
+              <property name="mytype" stdset="0">
+               <string>clickable_button</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="exportScanConfig">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>110</width>
+                <height>30</height>
+               </size>
+              </property>
+              <property name="font">
+               <font>
+                <pointsize>10</pointsize>
+               </font>
+              </property>
+              <property name="toolTip">
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Exp. Conf.&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Save current scan parameters to a JSON file.&lt;br/&gt;
+Includes temperature, peak-search and beam settings.&lt;br/&gt;
+Positions reflect the current UI, including re-peaks.&lt;br/&gt;
+Instrument settings and live readouts are excluded.&lt;br/&gt;
+Available during scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+              </property>
+              <property name="text">
+               <string>Exp. Conf.</string>
+              </property>
+              <property name="mytype" stdset="0">
+               <string>clickable_button</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <spacer name="horizontalSpacer_5">
               <property name="orientation">
                <enum>Qt::Orientation::Horizontal</enum>
@@ -195,7 +320,7 @@ QProgressBar::chunk {
               <property name="sizeHint" stdset="0">
                <size>
                 <width>100</width>
-                <height>36</height>
+                <height>30</height>
                </size>
               </property>
              </spacer>
@@ -211,7 +336,7 @@ QProgressBar::chunk {
               <property name="sizeHint" stdset="0">
                <size>
                 <width>100</width>
-                <height>36</height>
+                <height>30</height>
                </size>
               </property>
              </spacer>
@@ -1197,11 +1322,11 @@ Allow the sample temperature to settle before scanning.&lt;br/&gt;
 Enter minutes; the min suffix is shown automatically.&lt;br/&gt;
 0 skips this additional wait.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                        </property>
-                       <property name="suffix">
-                        <string> min</string>
-                       </property>
                        <property name="buttonSymbols">
                         <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                       </property>
+                       <property name="suffix">
+                        <string> min</string>
                        </property>
                        <property name="value">
                         <number>10</number>
@@ -1688,15 +1813,21 @@ QTabBar::tab:selected {
                            <verstretch>0</verstretch>
                           </sizepolicy>
                          </property>
+                         <property name="minimumSize">
+                          <size>
+                           <width>80</width>
+                           <height>0</height>
+                          </size>
+                         </property>
+                         <property name="toolTip">
+                          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in X reading&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Current X reading from this lock-in.&lt;br/&gt;
+The adjacent Phase field sets its reference phase.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                         </property>
                          <property name="text">
                           <string>--</string>
                          </property>
                          <property name="readOnly">
                           <bool>true</bool>
-                         </property>
-                         <property name="toolTip">
-                          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in X reading&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Current X reading from this lock-in.&lt;br/&gt;
-The adjacent Phase field sets its reference phase.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                          </property>
                          <property name="mytype" stdset="0">
                           <string>inst_disp</string>
@@ -1705,27 +1836,28 @@ The adjacent Phase field sets its reference phase.&lt;/p&gt;&lt;/body&gt;&lt;/ht
                        </item>
                        <item>
                         <widget class="QDoubleSpinBox" name="phase1">
-                         <property name="minimumSize">
-                          <size>
-                           <width>60</width>
-                           <height>0</height>
-                          </size>
-                         </property>
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                            <horstretch>0</horstretch>
                            <verstretch>0</verstretch>
                           </sizepolicy>
                          </property>
+                         <property name="minimumSize">
+                          <size>
+                           <width>92</width>
+                           <height>0</height>
+                          </size>
+                         </property>
                          <property name="toolTip">
                           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Phase&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Reference phase in degrees; read on connection.&lt;br/&gt;
+Arrows: +/-1°; apply and read back immediately.&lt;br/&gt;
 Type a number; the ° unit is added automatically.&lt;br/&gt;
 Press Enter or leave the field to apply and read back.&lt;br/&gt;
 Resolution: 0.01°; blank = no valid readback.&lt;br/&gt;
 Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                          </property>
                          <property name="buttonSymbols">
-                          <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                          <enum>QAbstractSpinBox::ButtonSymbols::UpDownArrows</enum>
                          </property>
                          <property name="keyboardTracking">
                           <bool>false</bool>
@@ -1743,7 +1875,7 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                           <double>729.990000000000009</double>
                          </property>
                          <property name="singleStep">
-                          <double>0.010000000000000</double>
+                          <double>1.000000000000000</double>
                          </property>
                         </widget>
                        </item>
@@ -2127,15 +2259,21 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                            <verstretch>0</verstretch>
                           </sizepolicy>
                          </property>
+                         <property name="minimumSize">
+                          <size>
+                           <width>80</width>
+                           <height>0</height>
+                          </size>
+                         </property>
+                         <property name="toolTip">
+                          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in X reading&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Current X reading from this lock-in.&lt;br/&gt;
+The adjacent Phase field sets its reference phase.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                         </property>
                          <property name="text">
                           <string>--</string>
                          </property>
                          <property name="readOnly">
                           <bool>true</bool>
-                         </property>
-                         <property name="toolTip">
-                          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in X reading&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Current X reading from this lock-in.&lt;br/&gt;
-The adjacent Phase field sets its reference phase.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                          </property>
                          <property name="mytype" stdset="0">
                           <string>inst_disp</string>
@@ -2144,27 +2282,28 @@ The adjacent Phase field sets its reference phase.&lt;/p&gt;&lt;/body&gt;&lt;/ht
                        </item>
                        <item>
                         <widget class="QDoubleSpinBox" name="phase2">
-                         <property name="minimumSize">
-                          <size>
-                           <width>60</width>
-                           <height>0</height>
-                          </size>
-                         </property>
                          <property name="sizePolicy">
                           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                            <horstretch>0</horstretch>
                            <verstretch>0</verstretch>
                           </sizepolicy>
                          </property>
+                         <property name="minimumSize">
+                          <size>
+                           <width>92</width>
+                           <height>0</height>
+                          </size>
+                         </property>
                          <property name="toolTip">
                           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Phase&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Reference phase in degrees; read on connection.&lt;br/&gt;
+Arrows: +/-1°; apply and read back immediately.&lt;br/&gt;
 Type a number; the ° unit is added automatically.&lt;br/&gt;
 Press Enter or leave the field to apply and read back.&lt;br/&gt;
 Resolution: 0.01°; blank = no valid readback.&lt;br/&gt;
 Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                          </property>
                          <property name="buttonSymbols">
-                          <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                          <enum>QAbstractSpinBox::ButtonSymbols::UpDownArrows</enum>
                          </property>
                          <property name="keyboardTracking">
                           <bool>false</bool>
@@ -2182,7 +2321,7 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                           <double>729.990000000000009</double>
                          </property>
                          <property name="singleStep">
-                          <double>0.010000000000000</double>
+                          <double>1.000000000000000</double>
                          </property>
                         </widget>
                        </item>
@@ -2863,14 +3002,26 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                       <number>12</number>
                      </property>
                      <item row="0" column="0">
-                      <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,3,0">
-                       <property name="spacing">
+                      <layout class="QGridLayout" name="stage1PositionControls" columnstretch="1,0,3,0">
+                       <property name="horizontalSpacing">
+                        <number>12</number>
+                       </property>
+                       <property name="verticalSpacing">
                         <number>0</number>
                        </property>
-                       <property name="rightMargin">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
                         <number>6</number>
                        </property>
-                       <item>
+                       <property name="rightMargin">
+                        <number>18</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>9</number>
+                       </property>
+                       <item row="0" column="0" rowspan="2">
                         <layout class="QVBoxLayout" name="verticalLayout_68">
                          <property name="spacing">
                           <number>0</number>
@@ -2887,7 +3038,7 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                             <string>Active Instrument?</string>
                            </property>
                            <property name="text">
-                            <string/>
+                            <string />
                            </property>
                            <property name="checked">
                             <bool>true</bool>
@@ -2930,73 +3081,108 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                          </item>
                         </layout>
                        </item>
-                       <item>
-                        <layout class="QVBoxLayout" name="verticalLayout_43">
-                         <property name="spacing">
-                          <number>0</number>
+                       <item row="0" column="1">
+                        <widget class="QLabel" name="label_23">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
                          </property>
-                         <property name="leftMargin">
-                          <number>12</number>
+                         <property name="maximumSize">
+                          <size>
+                           <width>16777215</width>
+                           <height>16777215</height>
+                          </size>
                          </property>
-                         <property name="topMargin">
-                          <number>6</number>
+                         <property name="text">
+                          <string>iPos. (mm)</string>
                          </property>
-                         <property name="rightMargin">
-                          <number>12</number>
+                         <property name="mytype" stdset="0">
+                          <string>label</string>
                          </property>
-                         <item>
-                          <widget class="QLabel" name="label_23">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="maximumSize">
-                            <size>
-                             <width>16777215</width>
-                             <height>16777215</height>
-                            </size>
-                           </property>
-                           <property name="text">
-                            <string>iPos. (mm)</string>
-                           </property>
-                           <property name="mytype" stdset="0">
-                            <string>label</string>
-                           </property>
-                          </widget>
-                         </item>
-                         <item>
-                          <widget class="QDoubleSpinBox" name="iPos1">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="maximumSize">
-                            <size>
-                             <width>88</width>
-                             <height>16777215</height>
-                            </size>
-                           </property>
-                           <property name="buttonSymbols">
-                            <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
-                           </property>
-                           <property name="decimals">
-                            <number>3</number>
-                           </property>
-                           <property name="maximum">
-                            <double>220.000000000000000</double>
-                           </property>
-                           <property name="value">
-                            <double>110.000000000000000</double>
-                           </property>
-                          </widget>
-                         </item>
-                        </layout>
+                        </widget>
                        </item>
-                       <item>
+                       <item row="1" column="1">
+                        <widget class="QDoubleSpinBox" name="iPos1">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                         <property name="maximumSize">
+                          <size>
+                           <width>60</width>
+                           <height>16777215</height>
+                          </size>
+                         </property>
+                         <property name="buttonSymbols">
+                          <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                         </property>
+                         <property name="decimals">
+                          <number>3</number>
+                         </property>
+                         <property name="maximum">
+                          <double>220.000000000000000</double>
+                         </property>
+                         <property name="value">
+                          <double>110.000000000000000</double>
+                         </property>
+                        </widget>
+                       </item>
+                       <item row="1" column="2" alignment="Qt::AlignBottom">
+                        <widget class="QWidget" name="stage1HomeContainer">
+                         <layout class="QVBoxLayout" name="stage1HomeLayout">
+                          <property name="leftMargin">
+                           <number>0</number>
+                          </property>
+                          <property name="topMargin">
+                           <number>0</number>
+                          </property>
+                          <property name="rightMargin">
+                           <number>0</number>
+                          </property>
+                          <property name="bottomMargin">
+                           <number>10</number>
+                          </property>
+                          <property name="spacing">
+                           <number>0</number>
+                          </property>
+                          <item>
+                           <widget class="QPushButton" name="stage1Home">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
+                            <property name="maximumSize">
+                             <size>
+                              <width>16777215</width>
+                              <height>25</height>
+                             </size>
+                            </property>
+                            <property name="font">
+                             <font>
+                              <pointsize>10</pointsize>
+                             </font>
+                            </property>
+                            <property name="toolTip">
+                             <string>Home Stage1 and refresh its current position.</string>
+                            </property>
+                            <property name="text">
+                             <string>Home</string>
+                            </property>
+                            <property name="mytype" stdset="0">
+                             <string>clickable_button</string>
+                            </property>
+                           </widget>
+                          </item>
+                         </layout>
+                        </widget>
+                       </item>
+                       <item row="0" column="3" rowspan="2">
                         <widget class="QFrame" name="stage1Manual">
                          <property name="mytype" stdset="0">
                           <string>inst_manu</string>
@@ -3186,6 +3372,9 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                         </widget>
                        </item>
                       </layout>
+                                                                 
+                                           
+                                           
                      </item>
                      <item row="1" column="0">
                       <layout class="QHBoxLayout" name="horizontalLayout_50">
@@ -3783,14 +3972,26 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                       <number>12</number>
                      </property>
                      <item row="0" column="0">
-                      <layout class="QHBoxLayout" name="horizontalLayout_41" stretch="1,3,0">
-                       <property name="spacing">
+                      <layout class="QGridLayout" name="stage2PositionControls" columnstretch="1,0,3,0">
+                       <property name="horizontalSpacing">
+                        <number>12</number>
+                       </property>
+                       <property name="verticalSpacing">
                         <number>0</number>
                        </property>
-                       <property name="rightMargin">
+                       <property name="leftMargin">
+                        <number>0</number>
+                       </property>
+                       <property name="topMargin">
                         <number>6</number>
                        </property>
-                       <item>
+                       <property name="rightMargin">
+                        <number>18</number>
+                       </property>
+                       <property name="bottomMargin">
+                        <number>9</number>
+                       </property>
+                       <item row="0" column="0" rowspan="2">
                         <layout class="QVBoxLayout" name="verticalLayout_74">
                          <property name="spacing">
                           <number>0</number>
@@ -3807,7 +4008,7 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                             <string>Active Instrument?</string>
                            </property>
                            <property name="text">
-                            <string/>
+                            <string />
                            </property>
                            <property name="checked">
                             <bool>true</bool>
@@ -3850,76 +4051,111 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                          </item>
                         </layout>
                        </item>
-                       <item>
-                        <layout class="QVBoxLayout" name="verticalLayout_44">
-                         <property name="spacing">
-                          <number>0</number>
+                       <item row="0" column="1">
+                        <widget class="QLabel" name="label_30">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
                          </property>
-                         <property name="leftMargin">
-                          <number>12</number>
+                         <property name="maximumSize">
+                          <size>
+                           <width>16777215</width>
+                           <height>16777215</height>
+                          </size>
                          </property>
-                         <property name="topMargin">
-                          <number>6</number>
+                         <property name="text">
+                          <string>iPos. (mm)</string>
                          </property>
-                         <property name="rightMargin">
-                          <number>12</number>
+                         <property name="mytype" stdset="0">
+                          <string>label</string>
                          </property>
-                         <item>
-                          <widget class="QLabel" name="label_30">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="maximumSize">
-                            <size>
-                             <width>16777215</width>
-                             <height>16777215</height>
-                            </size>
-                           </property>
-                           <property name="text">
-                            <string>iPos. (mm)</string>
-                           </property>
-                           <property name="mytype" stdset="0">
-                            <string>label</string>
-                           </property>
-                          </widget>
-                         </item>
-                         <item>
-                          <widget class="QDoubleSpinBox" name="iPos2">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="maximumSize">
-                            <size>
-                             <width>88</width>
-                             <height>16777215</height>
-                            </size>
-                           </property>
-                           <property name="buttonSymbols">
-                            <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
-                           </property>
-                           <property name="decimals">
-                            <number>3</number>
-                           </property>
-                           <property name="minimum">
-                            <double>0.000000000000000</double>
-                           </property>
-                           <property name="maximum">
-                            <double>220.000000000000000</double>
-                           </property>
-                           <property name="value">
-                            <double>110.000000000000000</double>
-                           </property>
-                          </widget>
-                         </item>
-                        </layout>
+                        </widget>
                        </item>
-                       <item>
+                       <item row="1" column="1">
+                        <widget class="QDoubleSpinBox" name="iPos2">
+                         <property name="sizePolicy">
+                          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                           <horstretch>0</horstretch>
+                           <verstretch>0</verstretch>
+                          </sizepolicy>
+                         </property>
+                         <property name="maximumSize">
+                          <size>
+                           <width>60</width>
+                           <height>16777215</height>
+                          </size>
+                         </property>
+                         <property name="buttonSymbols">
+                          <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                         </property>
+                         <property name="decimals">
+                          <number>3</number>
+                         </property>
+                         <property name="minimum">
+                          <double>0.000000000000000</double>
+                         </property>
+                         <property name="maximum">
+                          <double>220.000000000000000</double>
+                         </property>
+                         <property name="value">
+                          <double>110.000000000000000</double>
+                         </property>
+                        </widget>
+                       </item>
+                       <item row="1" column="2" alignment="Qt::AlignBottom">
+                        <widget class="QWidget" name="stage2HomeContainer">
+                         <layout class="QVBoxLayout" name="stage2HomeLayout">
+                          <property name="leftMargin">
+                           <number>0</number>
+                          </property>
+                          <property name="topMargin">
+                           <number>0</number>
+                          </property>
+                          <property name="rightMargin">
+                           <number>0</number>
+                          </property>
+                          <property name="bottomMargin">
+                           <number>10</number>
+                          </property>
+                          <property name="spacing">
+                           <number>0</number>
+                          </property>
+                          <item>
+                           <widget class="QPushButton" name="stage2Home">
+                            <property name="sizePolicy">
+                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                              <horstretch>0</horstretch>
+                              <verstretch>0</verstretch>
+                             </sizepolicy>
+                            </property>
+                            <property name="maximumSize">
+                             <size>
+                              <width>16777215</width>
+                              <height>25</height>
+                             </size>
+                            </property>
+                            <property name="font">
+                             <font>
+                              <pointsize>10</pointsize>
+                             </font>
+                            </property>
+                            <property name="toolTip">
+                             <string>Home Stage2 and refresh its current position.</string>
+                            </property>
+                            <property name="text">
+                             <string>Home</string>
+                            </property>
+                            <property name="mytype" stdset="0">
+                             <string>clickable_button</string>
+                            </property>
+                           </widget>
+                          </item>
+                         </layout>
+                        </widget>
+                       </item>
+                       <item row="0" column="3" rowspan="2">
                         <widget class="QFrame" name="stage2Manual">
                          <property name="mytype" stdset="0">
                           <string>inst_manu</string>
@@ -4100,6 +4336,9 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                         </widget>
                        </item>
                       </layout>
+                                                                 
+                                           
+                                           
                      </item>
                      <item row="1" column="0">
                       <layout class="QHBoxLayout" name="horizontalLayout_11">
@@ -4836,6 +5075,12 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                            <property name="buttonSymbols">
                             <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
                            </property>
+                           <property name="minimum">
+                            <double>0.000000000000000</double>
+                           </property>
+                           <property name="maximum">
+                            <double>360.000000000000000</double>
+                           </property>
                            <property name="value">
                             <double>3.000000000000000</double>
                            </property>
@@ -5472,6 +5717,12 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                            <property name="decimals">
                             <number>3</number>
                            </property>
+                           <property name="minimum">
+                            <double>0.000000000000000</double>
+                           </property>
+                           <property name="maximum">
+                            <double>360.000000000000000</double>
+                           </property>
                            <property name="value">
                             <double>4.000000000000000</double>
                            </property>
@@ -5697,6 +5948,54 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                      <item>
                       <layout class="QHBoxLayout" name="horizontalLayout_15">
                        <item>
+                        <layout class="QVBoxLayout" name="verticalLayout_40">
+                         <property name="spacing">
+                          <number>3</number>
+                         </property>
+                         <item>
+                          <widget class="QLabel" name="label_34">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="text">
+                            <string>Step NO.</string>
+                           </property>
+                           <property name="mytype" stdset="0">
+                            <string>label</string>
+                           </property>
+                          </widget>
+                         </item>
+                         <item>
+                          <widget class="QSpinBox" name="rotary2StepNO">
+                           <property name="sizePolicy">
+                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                             <horstretch>0</horstretch>
+                             <verstretch>0</verstretch>
+                            </sizepolicy>
+                           </property>
+                           <property name="maximumSize">
+                            <size>
+                             <width>48</width>
+                             <height>24</height>
+                            </size>
+                           </property>
+                           <property name="buttonSymbols">
+                            <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+                           </property>
+                           <property name="maximum">
+                            <number>10000</number>
+                           </property>
+                           <property name="value">
+                            <number>1</number>
+                           </property>
+                          </widget>
+                         </item>
+                        </layout>
+                       </item>
+                       <item>
                         <layout class="QVBoxLayout" name="verticalLayout_94">
                          <property name="spacing">
                           <number>3</number>
@@ -5767,54 +6066,6 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                          </item>
                          <item>
                           <widget class="QSpinBox" name="Rot2CurrScan">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="maximumSize">
-                            <size>
-                             <width>48</width>
-                             <height>24</height>
-                            </size>
-                           </property>
-                           <property name="buttonSymbols">
-                            <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
-                           </property>
-                           <property name="maximum">
-                            <number>10000</number>
-                           </property>
-                           <property name="value">
-                            <number>1</number>
-                           </property>
-                          </widget>
-                         </item>
-                        </layout>
-                       </item>
-                       <item>
-                        <layout class="QVBoxLayout" name="verticalLayout_40">
-                         <property name="spacing">
-                          <number>3</number>
-                         </property>
-                         <item>
-                          <widget class="QLabel" name="label_34">
-                           <property name="sizePolicy">
-                            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                             <horstretch>0</horstretch>
-                             <verstretch>0</verstretch>
-                            </sizepolicy>
-                           </property>
-                           <property name="text">
-                            <string>Step NO.</string>
-                           </property>
-                           <property name="mytype" stdset="0">
-                            <string>label</string>
-                           </property>
-                          </widget>
-                         </item>
-                         <item>
-                          <widget class="QSpinBox" name="rotary2StepNO">
                            <property name="sizePolicy">
                             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
                              <horstretch>0</horstretch>
@@ -6094,8 +6345,11 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                            <property name="decimals">
                             <number>3</number>
                            </property>
+                           <property name="minimum">
+                            <double>0.000000000000000</double>
+                           </property>
                            <property name="maximum">
-                            <double>1000.000000000000000</double>
+                            <double>360.000000000000000</double>
                            </property>
                            <property name="value">
                             <double>4.000000000000000</double>
@@ -6522,7 +6776,13 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                             </font>
                            </property>
                            <property name="toolTip">
-                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Rotation stage coupling:&lt;/span&gt;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Independent'&lt;/span&gt;: each rotation stage follows its own angle sequence; a stage whose step number is 1 stays at its initial angle and never moves;&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'Coupled'&lt;/span&gt;: Rotary1, Rotary2 and Rotary3 step together, one angle each per polarization point, so all three must be given the same number of steps;&lt;/p&gt;&lt;p&gt;Importing a calibration file forces coupled for that scan, whatever this button shows.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Rotation stage coupling&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Coupled: pair the angles of checked rotation stages.&lt;br/&gt;
+Checked stages need the same number of points;&lt;br/&gt;
+each stage may use its own start angle and step.&lt;br/&gt;
+Unchecked stages do not move or affect the count.&lt;br/&gt;
+Rot1 + Rot2 work with Rot3 unchecked.&lt;br/&gt;
+Independent: retain separate angle sequences.&lt;br/&gt;
+A loaded calibration table uses Rot2 as the master.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                            </property>
                            <property name="text">
                             <string>Independent</string>
@@ -6688,7 +6948,7 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                           </size>
                          </property>
                          <property name="toolTip">
-                          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan modes&lt;/span&gt; (loop order: outermost → innermost)&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'THz_Scan'&lt;/span&gt;: THz time-domain scan - stage1 sweeps the THz waveform, stage2 normally holds one pump delay. Order: rotation stages → stage1 → stage2.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'1D_THz'&lt;/span&gt;: pump-probe 1D scan - stage1 fixed at the THz peak (iPos1), stage2 sweeps the pump delay. Order: rotation stages → stage1 → stage2.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'POL_2D'&lt;/span&gt;: polarization-dependent scan - at each fixed stage1 / stage2 point the rotation stages sweep the polarization (same mode name as MO). Order: stage1 → stage2 → rotation stages.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'2D_THz'&lt;/span&gt;: 2D scan - one full THz waveform (stage1) at each pump delay (stage2). Order: rotation stages → stage2 → stage1.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Temperature scans&lt;/span&gt;: with Drift comp. on (Inst. Config. → Peak search), every mode shifts iPos1 / iPos2 by the THz peak drift at each temperature point.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan modes&lt;/span&gt; (loop order: outermost → innermost)&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'THz_Scan'&lt;/span&gt;: THz time-domain scan - stage1 sweeps the THz waveform, stage2 normally holds one pump delay. Order: rotation stages → stage1 → stage2.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'1D_THz'&lt;/span&gt;: pump-probe 1D scan - stage1 fixed at the THz peak (iPos1), stage2 sweeps the pump delay. Order: rotation stages → stage1 → stage2.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'POL_2D'&lt;/span&gt;: polarization-dependent scan - at each fixed stage1 / stage2 point the rotation stages sweep the polarization (same mode name as MO). Order: stage1 → stage2 → rotation stages.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;'2D_THz'&lt;/span&gt;: 2D scan - one full THz waveform (stage1) at each pump delay (stage2). Order: rotation stages → stage2 → stage1.&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Peak search&lt;/span&gt;: Drift comp. controls searching in every mode, with or without temperature scanning. 1D_THz also searches before the first sweep at changed rotary angles, independently of Re-peak. Fixed Stage1 in 1D_THz follows the peak; other scans retain their window offset. Stage2 compensates the Stage1 correction.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                          </property>
                         </widget>
                        </item>
@@ -7727,29 +7987,76 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
              </widget>
             </item>
             <item row="0" column="1" rowspan="2">
-             <widget class="QGroupBox" name="ScanLog">
-              <property name="title">
-               <string>ScanLog</string>
+             <layout class="QVBoxLayout" name="scanLogsColumn" stretch="1,1">
+              <property name="leftMargin">
+               <number>0</number>
               </property>
-              <layout class="QVBoxLayout" name="scanLogLayout">
-               <item>
-                <widget class="QPlainTextEdit" name="scanLogText">
-                 <property name="font">
-                  <font>
-                   <family>Consolas</family>
-                   <pointsize>9</pointsize>
-                  </font>
-                 </property>
-                 <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan log&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Test conditions of each scan and its key events (temperature points, data files, peak tracking, how the scan ended), shown live.&lt;/p&gt;&lt;p&gt;Every line is also appended to ScanLog_YYYY-MM-DD.txt in the data save folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
-                 <property name="readOnly">
-                  <bool>true</bool>
-                 </property>
-                </widget>
-               </item>
-              </layout>
-             </widget>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QGroupBox" name="ScanLog">
+                <property name="title">
+                 <string>ScanLog</string>
+                </property>
+                <layout class="QVBoxLayout" name="scanLogLayout">
+                 <item>
+                  <widget class="QPlainTextEdit" name="scanLogText">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>9</pointsize>
+                    </font>
+                   </property>
+                   <property name="toolTip">
+                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=" font-weight:700;"&gt;Scan log&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Test conditions of each scan and its key events (temperature points, data files, peak tracking, how the scan ended), shown live.&lt;/p&gt;&lt;p&gt;Every line is also appended to ScanLog_YYYY-MM-DD.txt in the data save folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   </property>
+                   <property name="readOnly">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QGroupBox" name="scanProgressGroup">
+                <property name="title">
+                 <string>Live Progress</string>
+                </property>
+                <layout class="QVBoxLayout" name="scanProgressLayout">
+                 <item>
+                  <widget class="QPlainTextEdit" name="scanProgressText">
+                   <property name="font">
+                    <font>
+                     <family>Consolas</family>
+                     <pointsize>9</pointsize>
+                    </font>
+                   </property>
+                   <property name="toolTip">
+                    <string>Terminal output during scanning. Display only; not saved to disk. Cleared at the start of each scan; keeps the latest 1000 lines.</string>
+                   </property>
+                   <property name="readOnly">
+                    <bool>true</bool>
+                   </property>
+                   <property name="maximumBlockCount">
+                    <number>1000</number>
+                   </property>
+                   <property name="undoRedoEnabled">
+                    <bool>false</bool>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+             </layout>
             </item>
             <item row="1" column="0">
              <widget class="QTabWidget" name="configTabs">
@@ -7770,7 +8077,15 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                    </sizepolicy>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Temperature drift compensation&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Ticked: in every temperature scan (ScanT ticked, iTC connected, temperature points in the list), at each temperature point the stage1 THz peak is searched around TDS Ppos. Its shift Δ = new peak - TDS Ppos is added to iPos1, and to iPos2 with the direction set below, so the pump-THz delay stays the same at every temperature. Works the same in every scan mode.&lt;/p&gt;&lt;p&gt;Unticked: no search and no compensation. Scans without a temperature change are never compensated.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Drift comp.&lt;/b&gt;&lt;/p&gt;&lt;p&gt;ON: search before acquisition in every scan mode.&lt;br/&gt;
+With ScanT on, search at each temperature point.&lt;br/&gt;
+Temperature control is not required.&lt;br/&gt;
+1D_THz: also search after changing rotary angles,&lt;br/&gt;
+before the first sweep, even with Re-peak OFF.&lt;br/&gt;
+Fixed Stage1 in 1D_THz follows the found peak.&lt;br/&gt;
+Other scans keep their window offset from the peak.&lt;br/&gt;
+Stage2 compensates the actual Stage1 correction.&lt;br/&gt;
+OFF: disable all automatic peak searches.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="text">
                    <string>Drift comp.</string>
@@ -7792,7 +8107,11 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                    </sizepolicy>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;TDS Ppos - stage1 THz peak position (mm)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;The stage1 position of the THz peak that belongs to the current iPos1 / iPos2. Enter it by hand after optimising the TDS; every successful search then updates it.&lt;/p&gt;&lt;p&gt;Not set: a compensated temperature scan will not start. The value is not kept after the program is closed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;TDS Ppos (mm)&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Stage1 THz peak reference for the current setup.&lt;br/&gt;
+Set it after aligning the THz signal.&lt;br/&gt;
+Every successful search updates this reference.&lt;br/&gt;
+Drift comp. requires this value even with ScanT off.&lt;br/&gt;
+Fixed 1D_THz Stage1 follows the newly found peak.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="text">
                    <string>TDS Ppos (mm)</string>
@@ -7811,7 +8130,11 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                    </sizepolicy>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;TDS Ppos - stage1 THz peak position (mm)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;The stage1 position of the THz peak that belongs to the current iPos1 / iPos2. Enter it by hand after optimising the TDS; every successful search then updates it.&lt;/p&gt;&lt;p&gt;Not set: a compensated temperature scan will not start. The value is not kept after the program is closed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;TDS Ppos (mm)&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Stage1 THz peak reference for the current setup.&lt;br/&gt;
+Set it after aligning the THz signal.&lt;br/&gt;
+Every successful search updates this reference.&lt;br/&gt;
+Drift comp. requires this value even with ScanT off.&lt;br/&gt;
+Fixed 1D_THz Stage1 follows the newly found peak.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="buttonSymbols">
                    <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
@@ -8018,7 +8341,10 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                    </sizepolicy>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Stage2 compensation direction&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Reverse: stage2 moves opposite to the stage1 peak shift, iPos2 = iPos2 - Δ (this setup: stage2 is mounted in reverse).&lt;/p&gt;&lt;p&gt;Forward: iPos2 = iPos2 + Δ.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stage2 compensation direction&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Compensate the actual Stage1 position correction.&lt;br/&gt;
+Reverse: Stage2 moves by the opposite amount.&lt;br/&gt;
+Forward: Stage2 moves by the same signed amount.&lt;br/&gt;
+Fixed 1D_THz also removes an old peak offset.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="text">
                    <string>Stage2 comp.</string>
@@ -8048,7 +8374,10 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                    </font>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Stage2 compensation direction&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Reverse: stage2 moves opposite to the stage1 peak shift, iPos2 = iPos2 - Δ (this setup: stage2 is mounted in reverse).&lt;/p&gt;&lt;p&gt;Forward: iPos2 = iPos2 + Δ.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stage2 compensation direction&lt;/b&gt;&lt;/p&gt;&lt;p&gt;Compensate the actual Stage1 position correction.&lt;br/&gt;
+Reverse: Stage2 moves by the opposite amount.&lt;br/&gt;
+Forward: Stage2 moves by the same signed amount.&lt;br/&gt;
+Fixed 1D_THz also removes an old peak offset.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="text">
                    <string>Reverse</string>
@@ -8172,7 +8501,14 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                    </sizepolicy>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;1D_THz repeat peak search&lt;/span&gt;&lt;/p&gt;&lt;p&gt;ON (default): during a temperature scan with Drift comp. enabled, search the peak again before Stage2 repeat 2, 3, etc. at each temperature. Update Stage1 and compensate Stage2 using the selected direction.&lt;/p&gt;&lt;p&gt;OFF: keep only the initial peak search at each temperature. Other scan modes are unaffected. Repeat searches do not repeat the sample soak or Beam settle wait.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;1D repeat peak&lt;/b&gt;&lt;/p&gt;&lt;p&gt;ON: with Drift comp. on, search again before&lt;br/&gt;
+Stage2 repeat 2, 3, etc. in 1D_THz.&lt;br/&gt;
+Search at the current rotary angles.&lt;br/&gt;
+Works with or without temperature scanning.&lt;br/&gt;
+OFF: skip repeat searches at the same angle.&lt;br/&gt;
+Drift comp. still searches before the first sweep&lt;br/&gt;
+at each changed angle, even with Repeat = 1.&lt;br/&gt;
+Other modes are unaffected. No extra soak/beam waits.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="text">
                    <string>1D repeat peak</string>
@@ -8191,7 +8527,14 @@ Available when connected and not scanning.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</
                    </sizepolicy>
                   </property>
                   <property name="toolTip">
-                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;1D_THz repeat peak search&lt;/span&gt;&lt;/p&gt;&lt;p&gt;ON (default): during a temperature scan with Drift comp. enabled, search the peak again before Stage2 repeat 2, 3, etc. at each temperature. Update Stage1 and compensate Stage2 using the selected direction.&lt;/p&gt;&lt;p&gt;OFF: keep only the initial peak search at each temperature. Other scan modes are unaffected. Repeat searches do not repeat the sample soak or Beam settle wait.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                   <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;1D repeat peak&lt;/b&gt;&lt;/p&gt;&lt;p&gt;ON: with Drift comp. on, search again before&lt;br/&gt;
+Stage2 repeat 2, 3, etc. in 1D_THz.&lt;br/&gt;
+Search at the current rotary angles.&lt;br/&gt;
+Works with or without temperature scanning.&lt;br/&gt;
+OFF: skip repeat searches at the same angle.&lt;br/&gt;
+Drift comp. still searches before the first sweep&lt;br/&gt;
+at each changed angle, even with Repeat = 1.&lt;br/&gt;
+Other modes are unaffected. No extra soak/beam waits.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                   </property>
                   <property name="text">
                    <string>Re-peak: ON</string>

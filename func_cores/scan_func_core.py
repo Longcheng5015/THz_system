@@ -238,6 +238,7 @@ class ScanPlanner:
 		polarization_policy: str = "independent",
 		pol_cali_mode: bool = False,
 		cali_table: Dict[str, Any] | None = None,
+		active_rotaries: Tuple[bool, bool, bool] | None = None,
 	) -> Dict[str, Any]:
 		"""
 		Build polarization state lists with the same variable naming as the main program.
@@ -246,6 +247,8 @@ class ScanPlanner:
 		- "coupled": build one-to-one coupled rotary states. In calibration mode,
 		  rotary2 is the master and rotary1/3 are interpolated from calibration table.
 		- "independent": build cartesian-product rotary states (three rotary independent).
+		active_rotaries optionally excludes unchecked axes from coupled-state counts.
+		Omitting it preserves the three-axis rules used by older applications.
 
 		Returns a dict with:
 		- pol_rot1_list, pol_rot2_list, pol_rot3_list
@@ -268,16 +271,26 @@ class ScanPlanner:
 			policy = "independent"
 
 		manu_cali_active = bool(pol_cali_mode and cali_table)
+		active = (True, True, True) if active_rotaries is None else tuple(active_rotaries)
+		if len(active) != 3:
+			raise ValueError("active_rotaries must contain three flags.")
+		if policy == "coupled" and not any(active):
+			result.update(pol_rot1_list=[iRot1], pol_rot2_list=[iRot2], pol_rot3_list=[iRot3], N_pol=1)
+			return result
 
 		if policy == "coupled" and manu_cali_active and cali_table is not None:
 			try:
 				cali_rot2 = np.array(cali_table.get("rot2_cali", []), dtype=float)
 				cali_rot1 = np.array(cali_table.get("rot1_cali", []), dtype=float)
 				cali_rot3 = np.array(cali_table.get("rot3_cali", []), dtype=float)
+				if not active[0]:
+					cali_rot1 = np.full_like(cali_rot2, iRot1)
+				if not active[2]:
+					cali_rot3 = np.full_like(cali_rot2, iRot3)
 				if cali_rot2.size == 0 or cali_rot1.size == 0 or cali_rot3.size == 0:
 					manu_cali_active = False
 				else:
-					pol_rot2_list = rotary2_pos_sequence if rotary2_NO > 0 else [iRot2]
+					pol_rot2_list = rotary2_pos_sequence if active[1] and rotary2_NO > 0 else [iRot2]
 					pol_rot1_list, pol_rot3_list = DataProcess.interp_rotary_by_rot2(
 						pol_rot2_list, cali_rot2, cali_rot1, cali_rot3
 					)
@@ -297,17 +310,19 @@ class ScanPlanner:
 			rot2_vals = rotary2_pos_sequence if rotary2_NO > 0 else [iRot2]
 			rot3_vals = rotary3_pos_sequence if rotary3_NO > 0 else [iRot3]
 
-			if not (len(rot1_vals) == len(rot2_vals) == len(rot3_vals)):
+			counts = [len(values) for values, enabled in zip((rot1_vals, rot2_vals, rot3_vals), active) if enabled]
+			if len(set(counts)) != 1:
+				label = "Rotary1, Rotary2 and Rotary3" if active_rotaries is None else "Enabled rotation stages"
 				result["error_msg"] = (
-					f"Error: Rotary1, Rotary2 and Rotary3 must have the same number of states in coupled mode. "
+					f"Error: {label} must have the same number of states in coupled mode. "
 					f"Currently: Rotary1 NO={len(rot1_vals)}, Rotary2 NO={len(rot2_vals)}, Rotary3 NO={len(rot3_vals)}."
 				)
 				return result
 
-			result["pol_rot1_list"] = list(rot1_vals)
-			result["pol_rot2_list"] = list(rot2_vals)
-			result["pol_rot3_list"] = list(rot3_vals)
-			result["N_pol"] = len(rot1_vals)
+			result["pol_rot1_list"] = list(rot1_vals) if active[0] else [iRot1] * counts[0]
+			result["pol_rot2_list"] = list(rot2_vals) if active[1] else [iRot2] * counts[0]
+			result["pol_rot3_list"] = list(rot3_vals) if active[2] else [iRot3] * counts[0]
+			result["N_pol"] = counts[0]
 			result["manu_cali_active"] = False
 			return result
 

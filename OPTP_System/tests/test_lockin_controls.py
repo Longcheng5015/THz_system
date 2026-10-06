@@ -3,6 +3,7 @@
 No hardware, visible windows or registry settings. Run with --native-preview to
 also render the Windows layout and save a preview in the temporary directory.
 An optional optp/mo/img/thz argument selects the system (default: optp).
+OPTP defaults to v3.9; --optp-version=3.7 checks the previous behavior.
 """
 import os
 import sys
@@ -15,11 +16,14 @@ if not NATIVE:
     os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 REPO = Path(__file__).resolve().parents[2]
 SYSTEM = next((arg for arg in sys.argv[1:] if not arg.startswith('--')), 'optp')
+OPTP_VERSION = next((arg.split('=', 1)[1] for arg in sys.argv if arg.startswith('--optp-version=')), '3.9')
+PHASE_ARROWS = SYSTEM == 'optp' and tuple(map(int, OPTP_VERSION.split('.'))) >= (3, 8)
+SETTINGS_READBACK = SYSTEM != 'optp' or PHASE_ARROWS
 FILES = {
-    'optp': ('OPTP_System/OPTP_system_iTC_v3.6.py', 'OPTP_iTC_main_v3.5.ui'),
-    'mo': ('MO_System/MO_system_iTC_v2.6.py', 'MO_system_iTC_v2.5.ui'),
-    'img': ('OPTP_image_System/OPTP_iTC_image_v1.7.py', 'OPTP_iTC_image_v1.6.ui'),
-    'thz': ('THz_emission_system/THz_emission_system_iTC_v1.5.py', 'THz_emission_system_iTC_v1.4.ui'),
+    'optp': (f'OPTP_System/OPTP_system_iTC_v{OPTP_VERSION}.py', 'OPTP_iTC_main_v3.5.ui'),
+    'mo': ('MO_System/MO_system_iTC_v2.7.py', 'MO_system_iTC_v2.5.ui'),
+    'img': ('OPTP_image_System/OPTP_iTC_image_v1.8.py', 'OPTP_iTC_image_v1.6.ui'),
+    'thz': ('THz_emission_system/THz_emission_system_iTC_v1.6.py', 'THz_emission_system_iTC_v1.4.ui'),
 }
 SRC = REPO / FILES[SYSTEM][0]
 ROOT = SRC.parent
@@ -34,9 +38,9 @@ import numpy as np
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QTextDocument
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QMessageBox, QTabWidget
+from PySide6.QtWidgets import QApplication, QMessageBox, QTabWidget, QStyle, QStyleOptionSpinBox, QAbstractSpinBox
 
-TMP = Path(tempfile.mkdtemp(prefix='optp_v36_lockin_'))
+TMP = Path(tempfile.mkdtemp(prefix=f'{SYSTEM}_lockin_controls_'))
 ns['QSettings'] = lambda org, name: QSettings(str(TMP / f'{org}.{name}.ini'), QSettings.IniFormat)
 app = QApplication.instance() or QApplication([])
 warnings = []
@@ -48,6 +52,7 @@ real_sr830 = ns['SR830']
 class Session:
     def __init__(self, phase):
         self.phase, self.raw_x, self.offset, self.y = phase, 0.003, 0.0, 0.001
+        self.sensitivity, self.time_constant = (14, 10) if phase > 0 else (17, 6)
         self.noise, self.fail_write, self.fail_query = 2e-8, None, None
         self.commands, self.closed = [], False
 
@@ -67,6 +72,7 @@ class Session:
         if command == self.fail_query:
             raise OSError('simulated read failure')
         return {'*IDN?': 'Stanford Research Systems,SR830,FAKE,1.0', 'PHAS?': str(self.phase),
+                'SENS?': str(self.sensitivity), 'OFLT?': str(self.time_constant),
                 'OUTP? 1': str(self.raw_x - self.offset + self.noise), 'OUTP? 2': str(self.y)}[command]
 
     def close(self): self.closed = True
@@ -86,6 +92,15 @@ class FakeSR830(real_sr830):
 
 
 ns['SR830'] = FakeSR830
+
+
+def isolated_data_folder(self):
+    self.dataSave_path = str(TMP)
+    self.ui.dataSavePath.setText(str(TMP))
+    return str(TMP)
+
+
+ns['moSys'].setup_data_folder = isolated_data_folder
 m = ns['moSys']()
 ui = m.ui
 m.qwait_time = lambda ms: None
@@ -103,10 +118,20 @@ def writes(session):
     return [c for c in session.commands if not c.endswith('?') and not c.startswith('OUTP?')]
 
 
+def phase_text_fits(box):
+    edit = box.lineEdit()
+    margins = edit.textMargins()
+    return edit.fontMetrics().horizontalAdvance(box.text()) + 4 + margins.left() + margins.right() <= edit.width()
+
+
 check('disconnected phase is unknown; Phase and Auto Zero disabled',
       not ui.phase1.isEnabled() and not ui.phase2.isEnabled()
       and not ui.autoZero1.isEnabled() and not ui.autoZero2.isEnabled()
       and not ui.phase1.cleanText() and not ui.phase2.cleanText())
+if SETTINGS_READBACK:
+    check('disconnected sensitivity/time constant keep the existing defaults',
+          ui.sensitivity1.currentIndex() == ui.sensitivity2.currentIndex() == 23
+          and ui.timeConst1.currentIndex() == ui.timeConst2.currentIndex() == 8)
 check('both rows have tooltips, decimal phase and degree suffix',
       all(getattr(ui, f'phase{i}').decimals() == 2 and getattr(ui, f'phase{i}').suffix() == '\N{DEGREE SIGN}'
           and getattr(ui, f'phase{i}').toolTip() and getattr(ui, f'autoZero{i}').toolTip() for i in (1, 2)))
@@ -138,6 +163,15 @@ ui.Lockin1_res.setCurrentText('GPIB0::8::INSTR')
 ui.Lockin2_res.setCurrentText('GPIB0::9::INSTR')
 m.connectInstruments()
 s1, s2 = m.lockin1._inst, m.lockin2._inst
+if SETTINGS_READBACK:
+    check('connection reads sensitivity, time constant and phase independently, with no writes',
+          ui.sensitivity1.currentIndex() == 14 and ui.timeConst1.currentIndex() == 10
+          and ui.sensitivity2.currentIndex() == 17 and ui.timeConst2.currentIndex() == 6
+          and all(cmd in s1.commands and cmd in s2.commands for cmd in ('SENS?', 'OFLT?', 'PHAS?'))
+          and not writes(s1) and not writes(s2))
+    check('connection readback retains the configured acquisition waits and multipliers',
+          ui.wait1.value() == ui.wait2.value() == 200
+          and ui.wait1multip.value() == ui.wait2multip.value() == 2)
 check('connect reads both phases without writing defaults',
       ui.phase1.value() == 37.42 and ui.phase2.value() == -125.75 and not writes(s1) and not writes(s2))
 check('connected controls enabled independently', ui.phase1.isEnabled() and ui.phase2.isEnabled()
@@ -159,6 +193,61 @@ check('Enter commits typed phase to the correct instrument', writes(s2) == ['PHA
 check('typing a number without a degree sign automatically displays the degree suffix',
       ui.phase2.hasAcceptableInput() and ui.phase2.text().endswith('\N{DEGREE SIGN}')
       and ui.phase2.cleanText() == '-12.34')
+
+if PHASE_ARROWS:
+    ui.setAttribute(Qt.WA_DontShowOnScreen, True)
+    ui.resize(1920, 1040); ui.show(); ui.activateWindow(); app.processEvents()
+    check('Phase arrows visible, 1-degree steps, decimal input and commit-only typing retained',
+          all(box.buttonSymbols() == QAbstractSpinBox.ButtonSymbols.UpDownArrows and box.singleStep() == 1
+              and box.decimals() == 2 and not box.keyboardTracking() for box in (ui.phase1, ui.phase2)))
+
+    def click_arrow(box, up):
+        option = QStyleOptionSpinBox()
+        option.initFrom(box)
+        option.buttonSymbols = box.buttonSymbols()
+        option.frame = box.hasFrame()
+        part = QStyle.SC_SpinBoxUp if up else QStyle.SC_SpinBoxDown
+        rect = box.style().subControlRect(QStyle.CC_SpinBox, option, part, box)
+        assert not rect.isEmpty()
+        QTest.mouseClick(box, Qt.LeftButton, pos=rect.center())
+        app.processEvents()
+
+    for index, session, other in ((1, s1, s2), (2, s2, s1)):
+        box = getattr(ui, f'phase{index}')
+        for up in (True, False):
+            box.setFocus(); app.processEvents()
+            before, other_before = len(session.commands), list(other.commands)
+            expected = round(session.phase + (1 if up else -1), 2)
+            click_arrow(box, up)
+            check(f'Phase {index} arrow {up=}: immediate single write/readback, other device unchanged',
+                  session.commands[before:] == [f'PHAS {expected}', 'PHAS?']
+                  and box.value() == expected and other.commands == other_before)
+        before = list(session.commands)
+        QTest.keyClick(box, Qt.Key_Return)
+        getattr(ui, f'phase{3-index}').setFocus(); app.processEvents()
+        check(f'Phase {index}: Enter/focus loss after arrow adds no duplicate write', session.commands == before)
+
+    for index, session in ((1, s1), (2, s2)):
+        box = getattr(ui, f'phase{index}')
+        box.setFocus(); app.processEvents(); box.selectAll()
+        before = len(session.commands)
+        QTest.keyClicks(box, '23.45')
+        check(f'Phase {index}: typed decimals stay pending', len(session.commands) == before)
+        getattr(ui, f'phase{3-index}').setFocus(); app.processEvents()
+        check(f'Phase {index}: leaving the field commits exactly once',
+              session.commands[before:] == ['PHAS 23.45', 'PHAS?'] and box.value() == 23.45)
+
+    # Pending typed text plus an arrow must apply the final stepped value once.
+    ui.phase1.setFocus(); app.processEvents(); ui.phase1.selectAll()
+    before = len(s1.commands)
+    QTest.keyClicks(ui.phase1, '42.25'); click_arrow(ui.phase1, True)
+    check('arrow after pending text applies the stepped decimal value once',
+          s1.commands[before:] == ['PHAS 43.25', 'PHAS?'] and ui.phase1.value() == 43.25)
+    s1.phase = 179.75; m.refresh_lockin_phase('lockin1')
+    before = len(s1.commands)
+    click_arrow(ui.phase1, True)
+    check('arrow step displays wrapped hardware readback without a feedback write',
+          s1.commands[before:] == ['PHAS 180.75', 'PHAS?'] and ui.phase1.value() == -179.25)
 
 for index, session, other in ((1, s1, s2), (2, s2, s1)):
     old_other = list(other.commands)
@@ -198,6 +287,27 @@ check('phase readback failure clears field even if write succeeded', s1.phase ==
 s1.fail_query = None
 m.connectInstruments()
 check('reconnecting an already connected lock-in refreshes actual phase', ui.phase1.value() == 20)
+if SETTINGS_READBACK:
+    for query, field in (('SENS?', 'sensitivity1'), ('OFLT?', 'timeConst1')):
+        s1.fail_query = query
+        before = list(writes(s1))
+        m.connect_lockin(1)
+        check(f'{query} failure clears only the unknown setting, still reads phase and sends no writes',
+              getattr(ui, field).currentIndex() == -1 and ui.phase1.value() == s1.phase
+              and writes(s1) == before)
+    s1.fail_query = None
+    s1.sensitivity, s1.time_constant = 26, 19
+    ui.wait1.setValue(731); ui.wait1multip.setValue(2.5)
+    before = list(writes(s1))
+    m.connect_lockin(1)
+    check('repeated connection refreshes changed hardware indices and preserves custom wait settings',
+          ui.sensitivity1.currentIndex() == 26 and ui.timeConst1.currentIndex() == 19
+          and ui.wait1.value() == 731 and ui.wait1multip.value() == 2.5 and writes(s1) == before)
+    s1.sensitivity = 99
+    m.connect_lockin(1)
+    check('out-of-range instrument response is shown as unknown without changing the instrument',
+          ui.sensitivity1.currentIndex() == -1 and writes(s1) == before)
+    s1.sensitivity = 14; m.connect_lockin(1)
 
 s1.fail_write = 'AOFF '
 ui.autoZero1.click()
@@ -263,8 +373,8 @@ if NATIVE:
         check(f'native Lock-in {index}: display ~3/5, number and phase fit',
               abs(display.width()/old.width() - 0.6) < 0.06
               and display.fontMetrics().horizontalAdvance(display.text()) + 10 <= display.width()
-              and phase.fontMetrics().horizontalAdvance(phase.text()) + 10 <= phase.width())
-    ui.grab().save(str(TMP / 'v36_native_ui.png'))
+              and phase_text_fits(phase))
+    ui.grab().save(str(TMP / 'native_ui.png'))
     # Capture only the two Lock-in boxes for visual review.
     panel = ui.realDisChart1Num.parentWidget()
     panel.grab().save(str(TMP / 'lockin1_native.png'))
@@ -275,7 +385,7 @@ if NATIVE:
         print('LAYOUT smaller', index, 'number', display.width(), 'phase', phase.width())
         check(f'native Lock-in {index}: both fields fit at original 1661 px window width',
               display.fontMetrics().horizontalAdvance(display.text()) + 10 <= display.width()
-              and phase.fontMetrics().horizontalAdvance(phase.text()) + 10 <= phase.width())
+              and phase_text_fits(phase))
     baseline.close()
 
 m.closeInstruments(only_active=False)
