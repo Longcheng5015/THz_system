@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Polarization & Power Calibration: a polarizer / wave plate in a rotation mount, red arrow = polarization direction -->
+  <defs>
+    <radialGradient id="mount" cx="50%" cy="38%" r="68%">
+      <stop offset="0" stop-color="#22457c"/>
+      <stop offset="1" stop-color="#0b1730"/>
+    </radialGradient>
+    <radialGradient id="optic" cx="45%" cy="40%" r="65%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.06"/>
+    </radialGradient>
+  </defs>
+  <circle cx="128" cy="128" r="121" fill="url(#mount)" stroke="#ffffff" stroke-width="6"/>
+  <g stroke="#ffffff" stroke-linecap="round">
+    <line x1="216.0" y1="128.0" x2="241.0" y2="128.0" stroke-width="14"/>
+    <line x1="128.0" y1="40.0" x2="128.0" y2="15.0" stroke-width="14"/>
+    <line x1="40.0" y1="128.0" x2="15.0" y2="128.0" stroke-width="14"/>
+    <line x1="128.0" y1="216.0" x2="128.0" y2="241.0" stroke-width="14"/>
+  </g>
+  
+  <g transform="rotate(-30 128 128)">
+    <line x1="74" y1="128" x2="182" y2="128" stroke="#e3161b" stroke-width="22"/>
+    <polygon points="218,128 176,100 176,156" fill="#e3161b"/>
+    <polygon points="38,128 80,100 80,156" fill="#e3161b"/>
+  </g>
+  <circle cx="128" cy="128" r="12" fill="#ffffff"/>
+</svg>
