@@ -1,0 +1,1561 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1380</width>
+    <height>920</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Polarization &amp; Power Calibration System v1.2</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="centralLayout">
+    <item>
+     <widget class="QLabel" name="lbl_title">
+      <property name="font">
+       <font>
+        <pointsize>16</pointsize>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Polarization &amp; Power Calibration System v1.2</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="styleSheet">
+       <string notr="true">QTabBar::tab {
+    font-weight: bold;
+    font-size: 11pt;
+    color: rgb(80, 80, 80);        /* unselected tab */
+}
+QTabBar::tab:selected {
+    color: rgb(200, 60, 60);        /* selected tab */
+}
+</string>
+      </property>
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tab">
+       <attribute name="title">
+        <string>Calibration</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="mainLayout">
+        <!-- Top Unified Instrument Connection Panel -->
+        <item>
+         <widget class="QGroupBox" name="grp_pm100d">
+          <property name="title">
+           <string>Hardware Instrument Connections</string>
+          </property>
+          <layout class="QHBoxLayout" name="layout_detector">
+           <item>
+            <widget class="QCheckBox" name="chk_detector_enable">
+             <property name="toolTip">
+              <string>Use the detector chosen on the right (PM100D power meter or lock-in) for the power reading. Unchecked: no detector is connected or read.</string>
+             </property>
+             <property name="text">
+              <string>Detector</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="combo_detector">
+            <property name="toolTip">
+             <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Detector&lt;/b&gt;&lt;/p&gt;&lt;p&gt;&lt;b&gt;PM100D&lt;/b&gt;: thermal power meter, reading in mW (absolute power).&lt;/p&gt;&lt;p&gt;&lt;b&gt;Lock-in&lt;/b&gt;: an SR830 reads a fast detector (APD, PMT, one channel of a balanced detector) at the laser's 1 kHz trigger, connected to REF IN with the reference set to External. The reading is R (independent of the phase) in mV, proportional to the power but not calibrated in mW. Target and tolerances are then in mV.&lt;/p&gt;&lt;p&gt;Conn. Inst. connects the detector selected here; its address is set in Inst. Config.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+             <item>
+              <property name="text">
+               <string>PM100D</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Lock-in</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item>
+            <widget class="LedIndicator" name="led_detector" native="true">
+             <property name="minimumSize">
+              <size>
+               <width>28</width>
+               <height>28</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>28</width>
+               <height>28</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="pm_led_spacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Fixed</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>0</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QWidget" name="widget_pm_settings">
+             <layout class="QHBoxLayout" name="layout_pm_settings">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+              <item>
+               <widget class="QLabel" name="lbl_pm_wavelength">
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Wavelength (nm) - default 800 nm&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Set it to the laser wavelength. The meter uses it to correct the reading with the sensor's calibration data; it does not select what the sensor detects.&lt;/p&gt;&lt;p&gt;Sent to the meter when the meter connects, and again every time you finish editing (Enter, or leaving the box). The value the meter accepted is shown back here. The limits of the box follow the connected sensor (S302C: 185 - 20000 nm).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="text">
+                 <string>Wavelength (nm):</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="spin_pm_wavelength">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Wavelength (nm) - default 800 nm&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Set it to the laser wavelength. The meter uses it to correct the reading with the sensor's calibration data; it does not select what the sensor detects.&lt;/p&gt;&lt;p&gt;Sent to the meter when the meter connects, and again every time you finish editing (Enter, or leaving the box). The value the meter accepted is shown back here. The limits of the box follow the connected sensor (S302C: 185 - 20000 nm).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="buttonSymbols">
+                 <enum>QAbstractSpinBox::NoButtons</enum>
+                </property>
+                <property name="minimum">
+                 <number>185</number>
+                </property>
+                <property name="maximum">
+                 <number>20000</number>
+                </property>
+                <property name="value">
+                 <number>800</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="pm_wl_spacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::Fixed</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>12</width>
+                  <height>0</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="lbl_pm_range">
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Power range&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Auto: the meter picks the range itself (recommended).&lt;/p&gt;&lt;p&gt;A fixed range stops the meter from switching ranges; a power above it reads as over-range. The ranges are read from the meter when it connects and whenever the wavelength changes: they depend on the sensor and shift slightly with the wavelength (S302C at 800 nm: 3.695 mW, 34.99 mW, 347.9 mW, 3.477 W).&lt;/p&gt;&lt;p&gt;Applied to the meter at once.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="text">
+                 <string>Power range:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="combo_pm_range">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Power range&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Auto: the meter picks the range itself (recommended).&lt;/p&gt;&lt;p&gt;A fixed range stops the meter from switching ranges; a power above it reads as over-range. The ranges are read from the meter when it connects and whenever the wavelength changes: they depend on the sensor and shift slightly with the wavelength (S302C at 800 nm: 3.695 mW, 34.99 mW, 347.9 mW, 3.477 W).&lt;/p&gt;&lt;p&gt;Applied to the meter at once.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="minimumContentsLength">
+                 <number>8</number>
+                </property>
+                <item>
+                 <property name="text">
+                  <string>Auto</string>
+                 </property>
+                </item>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="widget_lockin_settings">
+             <layout class="QHBoxLayout" name="layout_lockin_settings">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+              <item>
+               <widget class="QLabel" name="lbl_lockin_sens">
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in sensitivity&lt;/b&gt; (full scale)&lt;/p&gt;&lt;p&gt;Choose one above the largest signal of the scan: the readout shows the signal in % of full scale, and above 100 % the reading may be clipped (the scan log warns). Read from the lock-in when it connects, applied at once when changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="text">
+                 <string>Sensitivity:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="combo_lockin_sens">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in sensitivity&lt;/b&gt; (full scale)&lt;/p&gt;&lt;p&gt;Choose one above the largest signal of the scan: the readout shows the signal in % of full scale, and above 100 % the reading may be clipped (the scan log warns). Read from the lock-in when it connects, applied at once when changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="minimumContentsLength">
+                 <number>10</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="lockin_sens_spacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeType">
+                 <enum>QSizePolicy::Fixed</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>12</width>
+                  <height>0</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QLabel" name="lbl_lockin_tc">
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in time constant&lt;/b&gt;&lt;/p&gt;&lt;p&gt;After a stage move the output needs about 5 time constants to settle. Keep Stable Window at least 5 x the time constant and Refresh at least the time constant (faster readings are not independent). Longer: less noise, slower scan. Read from the lock-in when it connects, applied at once when changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="text">
+                 <string>Time const.:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="combo_lockin_tc">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="toolTip">
+                 <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Lock-in time constant&lt;/b&gt;&lt;/p&gt;&lt;p&gt;After a stage move the output needs about 5 time constants to settle. Keep Stable Window at least 5 x the time constant and Refresh at least the time constant (faster readings are not independent). Longer: less noise, slower scan. Read from the lock-in when it connects, applied at once when changed.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="minimumContentsLength">
+                 <number>6</number>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <spacer name="refresh_spacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::Fixed</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>12</width>
+               <height>0</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QLabel" name="lbl_pm_refresh">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Refresh interval (ms)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;How often the detector is read. While no scan is running: the reading and the stage positions are shown at this interval. During a scan: the stability check reads the detector at this interval (the value at Start), see Stable Window.&lt;/p&gt;&lt;p&gt;The thermal sensor needs several seconds to follow a power change, so reading faster than about 500 ms shows little new. With the lock-in, use at least the time constant.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="text">
+              <string>Refresh (ms):</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSpinBox" name="spin_pm_refresh">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Refresh interval (ms)&lt;/span&gt;&lt;/p&gt;&lt;p&gt;How often the detector is read. While no scan is running: the reading and the stage positions are shown at this interval. During a scan: the stability check reads the detector at this interval (the value at Start), see Stable Window.&lt;/p&gt;&lt;p&gt;The thermal sensor needs several seconds to follow a power change, so reading faster than about 500 ms shows little new. With the lock-in, use at least the time constant.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="buttonSymbols">
+              <enum>QAbstractSpinBox::NoButtons</enum>
+             </property>
+             <property name="minimum">
+              <number>100</number>
+             </property>
+             <property name="maximum">
+              <number>10000</number>
+             </property>
+             <property name="singleStep">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>500</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="pm_power_spacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <!-- Side-by-Side 3 Stage Boxes Layout (Left to Right) -->
+        <item>
+         <layout class="QHBoxLayout" name="layout_three_stages">
+          
+          <!-- Stage 1 GroupBox (Left) -->
+          <item>
+           <widget class="QGroupBox" name="grp_stage1">
+            <property name="title">
+             <string>Stage 1 (1/2 Waveplate)</string>
+            </property>
+            <layout class="QGridLayout" name="grid_s1">
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="chk_stage1_enable">
+               <property name="text">
+                <string>Enable Stage 1</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="LedIndicator" name="led_stage1" native="true"/>
+             </item>
+             <item row="0" column="3" colspan="2">
+              <widget class="QPushButton" name="btn_home_stage1">
+               <property name="text">
+                <string>Home Stage 1</string>
+               </property>
+              </widget>
+             </item>
+
+             <item row="1" column="0">
+              <widget class="QLabel" name="lbl_s1_start">
+               <property name="text">
+                <string>Start (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage1_start">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+               <property name="value">
+                <double>0.0</double>
+               </property>
+              </widget>
+             </item>
+
+             <item row="2" column="0">
+              <widget class="QLabel" name="lbl_s1_step">
+               <property name="text">
+                <string>Step (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage1_step">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+               <property name="value">
+                <double>5.0</double>
+               </property>
+              </widget>
+             </item>
+
+             <item row="3" column="0">
+              <widget class="QLabel" name="lbl_s1_no">
+               <property name="text">
+                <string>Step NO.:</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1" colspan="2">
+              <widget class="QSpinBox" name="spin_stage1_no">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>10000</number>
+               </property>
+               <property name="value">
+                <number>19</number>
+               </property>
+              </widget>
+             </item>
+
+             <item row="4" column="0" colspan="5">
+              <widget class="QLabel" name="lbl_stage1_pos">
+               <property name="font">
+                <font>
+                 <bold>true</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Pos: -- °</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+
+             <item row="5" column="0">
+              <widget class="QLabel" name="lbl_s1_goto">
+               <property name="text">
+                <string>Target (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage1_goto">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="3" colspan="2">
+              <widget class="QPushButton" name="btn_stage1_goto">
+               <property name="text">
+                <string>Move To</string>
+               </property>
+              </widget>
+             </item>
+
+             <item row="6" column="0">
+              <widget class="QLabel" name="lbl_s1_rel">
+               <property name="text">
+                <string>Rel Step (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage1_rel">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="value">
+                <double>1.0</double>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="3">
+              <widget class="QPushButton" name="btn_stage1_step_minus">
+               <property name="text">
+                <string>Step -</string>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="4">
+              <widget class="QPushButton" name="btn_stage1_step_plus">
+               <property name="text">
+                <string>Step +</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+
+          <!-- Stage 2 GroupBox (Middle) -->
+          <item>
+           <widget class="QGroupBox" name="grp_stage2">
+            <property name="title">
+             <string>Stage 2 (Polarizer)</string>
+            </property>
+            <layout class="QGridLayout" name="grid_s2">
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="chk_stage2_enable">
+               <property name="text">
+                <string>Enable Stage 2</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="LedIndicator" name="led_stage2" native="true"/>
+             </item>
+             <item row="0" column="3" colspan="2">
+              <widget class="QPushButton" name="btn_home_stage2">
+               <property name="text">
+                <string>Home Stage 2</string>
+               </property>
+              </widget>
+             </item>
+
+             <item row="1" column="0">
+              <widget class="QLabel" name="lbl_s2_start">
+               <property name="text">
+                <string>Start (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage2_start">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+               <property name="value">
+                <double>0.0</double>
+               </property>
+              </widget>
+             </item>
+
+             <item row="2" column="0">
+              <widget class="QLabel" name="lbl_s2_step">
+               <property name="text">
+                <string>Step (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage2_step">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+               <property name="value">
+                <double>2.0</double>
+               </property>
+              </widget>
+             </item>
+
+             <item row="3" column="0">
+              <widget class="QLabel" name="lbl_s2_no">
+               <property name="text">
+                <string>Step NO.:</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1" colspan="2">
+              <widget class="QSpinBox" name="spin_stage2_no">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>10000</number>
+               </property>
+               <property name="value">
+                <number>91</number>
+               </property>
+              </widget>
+             </item>
+
+             <item row="4" column="0" colspan="5">
+              <widget class="QLabel" name="lbl_stage2_pos">
+               <property name="font">
+                <font>
+                 <bold>true</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Pos: -- °</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+
+             <item row="5" column="0">
+              <widget class="QLabel" name="lbl_s2_goto">
+               <property name="text">
+                <string>Target (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage2_goto">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="3" colspan="2">
+              <widget class="QPushButton" name="btn_stage2_goto">
+               <property name="text">
+                <string>Move To</string>
+               </property>
+              </widget>
+             </item>
+
+             <item row="6" column="0">
+              <widget class="QLabel" name="lbl_s2_rel">
+               <property name="text">
+                <string>Rel Step (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage2_rel">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="value">
+                <double>1.0</double>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="3">
+              <widget class="QPushButton" name="btn_stage2_step_minus">
+               <property name="text">
+                <string>Step -</string>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="4">
+              <widget class="QPushButton" name="btn_stage2_step_plus">
+               <property name="text">
+                <string>Step +</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+
+          <!-- Stage 3 GroupBox (Right) -->
+          <item>
+           <widget class="QGroupBox" name="grp_stage3">
+            <property name="title">
+             <string>Stage 3 (Auxiliary)</string>
+            </property>
+            <layout class="QGridLayout" name="grid_s3">
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="chk_stage3_enable">
+               <property name="text">
+                <string>Enable Stage 3</string>
+               </property>
+               <property name="checked">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="LedIndicator" name="led_stage3" native="true"/>
+             </item>
+             <item row="0" column="3" colspan="2">
+              <widget class="QPushButton" name="btn_home_stage3">
+               <property name="text">
+                <string>Home Stage 3</string>
+               </property>
+              </widget>
+             </item>
+
+             <item row="1" column="0">
+              <widget class="QLabel" name="lbl_s3_start">
+               <property name="text">
+                <string>Start (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage3_start">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+               <property name="value">
+                <double>0.0</double>
+               </property>
+              </widget>
+             </item>
+
+             <item row="2" column="0">
+              <widget class="QLabel" name="lbl_s3_step">
+               <property name="text">
+                <string>Step (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage3_step">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+               <property name="value">
+                <double>1.0</double>
+               </property>
+              </widget>
+             </item>
+
+             <item row="3" column="0">
+              <widget class="QLabel" name="lbl_s3_no">
+               <property name="text">
+                <string>Step NO.:</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1" colspan="2">
+              <widget class="QSpinBox" name="spin_stage3_no">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>10000</number>
+               </property>
+               <property name="value">
+                <number>46</number>
+               </property>
+              </widget>
+             </item>
+
+             <item row="4" column="0" colspan="5">
+              <widget class="QLabel" name="lbl_stage3_pos">
+               <property name="font">
+                <font>
+                 <bold>true</bold>
+                </font>
+               </property>
+               <property name="text">
+                <string>Pos: -- °</string>
+               </property>
+               <property name="alignment">
+                <set>Qt::AlignCenter</set>
+               </property>
+              </widget>
+             </item>
+
+             <item row="5" column="0">
+              <widget class="QLabel" name="lbl_s3_goto">
+               <property name="text">
+                <string>Target (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage3_goto">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="minimum">
+                <double>-360.0</double>
+               </property>
+               <property name="maximum">
+                <double>360.0</double>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="3" colspan="2">
+              <widget class="QPushButton" name="btn_stage3_goto">
+               <property name="text">
+                <string>Move To</string>
+               </property>
+              </widget>
+             </item>
+
+             <item row="6" column="0">
+              <widget class="QLabel" name="lbl_s3_rel">
+               <property name="text">
+                <string>Rel Step (°):</string>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="1" colspan="2">
+              <widget class="QDoubleSpinBox" name="spin_stage3_rel">
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="value">
+                <double>1.0</double>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="3">
+              <widget class="QPushButton" name="btn_stage3_step_minus">
+               <property name="text">
+                <string>Step -</string>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="4">
+              <widget class="QPushButton" name="btn_stage3_step_plus">
+               <property name="text">
+                <string>Step +</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+
+         </layout>
+        </item>
+
+        <!-- Calibration Config Panel -->
+        <item>
+         <widget class="QGroupBox" name="grp_config">
+          <property name="title">
+           <string>Calibration Settings &amp; Parameters</string>
+          </property>
+          <layout class="QGridLayout" name="grid_config">
+           <item row="0" column="0">
+            <widget class="QLabel" name="lbl_scan_mode">
+             <property name="text">
+              <string>Calibration Mode:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QComboBox" name="combo_scan_mode">
+             <item>
+              <property name="text">
+               <string>Power</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Polarization</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="0" column="2">
+            <widget class="QLabel" name="lbl_polar_search">
+             <property name="text">
+              <string>Polar Search Algo:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QComboBox" name="combo_polar_search">
+             <item>
+              <property name="text">
+               <string>Model Tracking (Option C)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Sequential Step (Option A)</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Binary Search (Option B)</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="0" column="4">
+            <widget class="QLabel" name="lbl_target_power">
+             <property name="text">
+              <string>Target Power (mW):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="5">
+            <widget class="QDoubleSpinBox" name="spin_target_power">
+             <property name="minimumSize">
+              <size>
+               <width>95</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="maximum">
+              <double>10000.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>5.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="6">
+            <widget class="QLabel" name="lbl_stability_tol">
+             <property name="toolTip">
+              <string>The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within this: max - min &lt;= Stability Tol. Used in both modes.</string>
+             </property>
+             <property name="text">
+              <string>Stability Tol (mW):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="7">
+            <widget class="QDoubleSpinBox" name="spin_stability_tol">
+             <property name="minimumSize">
+              <size>
+               <width>95</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within this: max - min &lt;= Stability Tol. Used in both modes.</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="maximum">
+              <double>100.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.050000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="8">
+            <widget class="QLabel" name="lbl_target_tol">
+             <property name="toolTip">
+              <string>Polarization mode: a Stage 1 angle is accepted when |P - Target Power| is no more than this and the power is stable. Not used in Power mode.</string>
+             </property>
+             <property name="text">
+              <string>Target Tol (mW):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="9">
+            <widget class="QDoubleSpinBox" name="spin_target_tol">
+             <property name="minimumSize">
+              <size>
+               <width>95</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Polarization mode: a Stage 1 angle is accepted when |P - Target Power| is no more than this and the power is stable. Not used in Power mode.</string>
+             </property>
+             <property name="decimals">
+              <number>3</number>
+             </property>
+             <property name="maximum">
+              <double>100.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.050000000000000</double>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="10">
+            <widget class="QLabel" name="lbl_stable_window">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stable Window (s)&lt;/b&gt;&lt;/p&gt;&lt;p&gt;After each stage move the detector is read every Refresh (ms). The reading counts as stable as soon as all readings in the last Stable Window lie within Stability Tol (max - min), and their mean is recorded. Default 3 s at 500 ms = 7 readings.&lt;/p&gt;&lt;p&gt;While the reading still changes after the move the window does not pass, so no separate wait time is needed. A measurement that is not stable within 60 s is recorded with Stable = False and noted in the ScanLog.&lt;/p&gt;&lt;p&gt;Lock-in: keep Stable Window at least 5 x the time constant and Refresh at least the time constant.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="text">
+              <string>Stable Window (s):</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="11">
+            <widget class="QDoubleSpinBox" name="spin_stable_window">
+             <property name="minimumSize">
+              <size>
+               <width>70</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stable Window (s)&lt;/b&gt;&lt;/p&gt;&lt;p&gt;After each stage move the detector is read every Refresh (ms). The reading counts as stable as soon as all readings in the last Stable Window lie within Stability Tol (max - min), and their mean is recorded. Default 3 s at 500 ms = 7 readings.&lt;/p&gt;&lt;p&gt;While the reading still changes after the move the window does not pass, so no separate wait time is needed. A measurement that is not stable within 60 s is recorded with Stable = False and noted in the ScanLog.&lt;/p&gt;&lt;p&gt;Lock-in: keep Stable Window at least 5 x the time constant and Refresh at least the time constant.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="decimals">
+              <number>1</number>
+             </property>
+             <property name="minimum">
+              <double>0.500000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>30.000000000000000</double>
+             </property>
+             <property name="singleStep">
+              <double>0.500000000000000</double>
+             </property>
+             <property name="value">
+              <double>3.000000000000000</double>
+             </property>
+            </widget>
+           </item>
+
+           <!-- Instrument buttons, Run Controls & Save Directory in one row -->
+           <item row="1" column="0" colspan="12">
+            <layout class="QHBoxLayout" name="layout_run">
+             <item>
+              <widget class="QPushButton" name="btn_connect_all">
+               <property name="minimumSize">
+                <size>
+                 <width>70</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Conn. Inst.</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_disconnect_all">
+               <property name="minimumSize">
+                <size>
+                 <width>70</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Close Inst.</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_exit">
+               <property name="minimumSize">
+                <size>
+                 <width>70</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Exit</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="run_gap_spacer">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Fixed</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>16</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_start_scan">
+               <property name="minimumSize">
+                <size>
+                 <width>70</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Start</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_stop_scan">
+               <property name="minimumSize">
+                <size>
+                 <width>70</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Stop</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_save_dir">
+               <property name="text">
+                <string>Save Dir:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="line_save_dir"/>
+             </item>
+             <item>
+              <widget class="QPushButton" name="btn_browse_dir">
+               <property name="text">
+                <string>Browse...</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_file_prefix">
+               <property name="text">
+                <string>Prefix:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLineEdit" name="line_file_prefix">
+               <property name="maximumSize">
+                <size>
+                 <width>100</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>pol_cali</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+
+        <item>
+         <widget class="QProgressBar" name="progress_bar">
+          <property name="value">
+           <number>0</number>
+          </property>
+         </widget>
+        </item>
+
+        <item>
+         <widget class="PlotWidget" name="powerChart" native="true">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>1</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+
+        <item>
+         <widget class="QTextEdit" name="txt_log">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="maximumHeight">
+           <number>120</number>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tab_2">
+       <attribute name="title">
+        <string>Inst. Config.</string>
+       </attribute>
+       <layout class="QGridLayout" name="tab2Layout" columnstretch="0,1">
+        <item row="0" column="0">
+         <widget class="QGroupBox" name="connGroup">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="title">
+           <string>Instrument Connections</string>
+          </property>
+          <layout class="QGridLayout" name="connGrid" columnstretch="0,1">
+           <item row="0" column="0" colspan="2" alignment="Qt::AlignRight">
+            <widget class="QPushButton" name="btn_scan_devices">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan devices&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Lists the PM100D power meters (USB), the lock-ins on GPIB and serial ports and the Thorlabs Kinesis serial numbers currently visible to this PC, and offers them in the drop-down lists. The values already entered are kept.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="text">
+              <string>Scan devices</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="lbl_conn_head_inst">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Instrument</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLabel" name="lbl_conn_head_addr">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="font">
+              <font>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="text">
+              <string>Address / Serial</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="lbl_conn_pm100d">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>PM100D Power Meter</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QComboBox" name="combo_pm100d_res">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>VISA resource of the PM100D power meter, e.g. USB0::0x1313::0x8078::P0020951::INSTR. Pick from the list after Scan devices, or type it in.</string>
+             </property>
+             <property name="editable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="lbl_conn_lockin">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Lock-in (SR830)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QComboBox" name="combo_lockin_res">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>VISA resource of the SR830 lock-in, e.g. GPIB0::2::INSTR (GPIB) or ASRL3::INSTR (RS-232). Pick from the list after Scan devices, or type it in.</string>
+             </property>
+             <property name="editable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="lbl_conn_stage1">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Stage 1 (1/2 Waveplate)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QComboBox" name="combo_stage1_serial">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Kinesis serial number of the Stage 1 (1/2 waveplate) rotary stage controller. Pick from the list after Scan devices, or type it in.</string>
+             </property>
+             <property name="editable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="lbl_conn_stage2">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Stage 2 (Polarizer)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QComboBox" name="combo_stage2_serial">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Kinesis serial number of the Stage 2 (polarizer) rotary stage controller. Pick from the list after Scan devices, or type it in.</string>
+             </property>
+             <property name="editable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0">
+            <widget class="QLabel" name="lbl_conn_stage3">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Stage 3 (Auxiliary)</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="1">
+            <widget class="QComboBox" name="combo_stage3_serial">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>200</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Kinesis serial number of the Stage 3 (auxiliary) rotary stage controller. Pick from the list after Scan devices, or type it in.</string>
+             </property>
+             <property name="editable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="0" column="1" rowspan="2">
+         <widget class="QGroupBox" name="grp_scan_log">
+          <property name="title">
+           <string>ScanLog</string>
+          </property>
+          <layout class="QVBoxLayout" name="layout_scan_log">
+           <item>
+            <widget class="QPlainTextEdit" name="txt_scan_log">
+             <property name="font">
+              <font>
+               <family>Consolas</family>
+               <pointsize>9</pointsize>
+              </font>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:700;&quot;&gt;Scan log&lt;/span&gt;&lt;/p&gt;&lt;p&gt;Test conditions of each scan and its key events (fixed stages, fitted model, angles where the target was not reached, readings that did not settle, lock-in over full scale, data files, how the scan ended), shown live. Point-by-point readings are in the log on the Calibration tab.&lt;/p&gt;&lt;p&gt;Every line is also appended to ScanLog_YYYY-MM-DD.txt in the data save folder.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="readOnly">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <spacer name="connVSpacer">
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PlotWidget</class>
+   <extends>QWidget</extends>
+   <header>plotwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>LedIndicator</class>
+   <extends>QWidget</extends>
+   <header>MyWidget</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

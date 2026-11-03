@@ -412,6 +412,57 @@ This document records the overall development and debugging history for the Pola
     - No traceback at shutdown.
     - All earlier tests still pass.
 
+### Polarization_cali v1.2 (stability check: fast sampling, Stable Window)
+- **Date**: 2026-11-03
+- **Main Change**: Copied `Polarization_cali_v1.1.py` / `.ui` to `Polarization_cali_v1.2.py` / `.ui`; v1.1 is unchanged. The stability check now reads the detector every **Refresh (ms)**. A measurement is stable as soon as all readings in the last **Stable Window (s)** lie within Stability Tol (max − min); their mean is recorded. Stable Window replaces Wait Time and defaults to 3 s. Time per measurement: detector settle time + window, instead of at least 3 × Wait Time (30 s at the v1.1 default).
+- **Details**:
+  - Why: in v1.1 Wait Time was both the settle time and the spacing between readings, and 4 readings were needed. That meant at least 3 × Wait Time per measurement even when the sensor had settled after 1-2 s. The neighbour-to-neighbour check also accepted a slow drift in one direction.
+  - `check_power_stability(detector, window_s, tolerance_mw, interval_s, stop_flag_check, logger)`:
+    - Reads every `interval_s`. The last n = ceil(window / interval) + 1 readings cover at least the window: 3 s / 500 ms = 7 readings.
+    - Stable as soon as max − min of these n readings ≤ Stability Tol; it returns their mean. Right after a move the readings still change, so no separate wait is needed.
+    - The next reading starts `interval_s` after the start of the previous one, or at once if the read took longer. A slow read therefore never squeezes the window.
+    - Stop / Exit are still checked every 0.1 s.
+    - Timeout `STABILITY_TIMEOUT_S` = 60 s (replaces `STABILITY_MAX_READINGS` = 15): it returns the mean of the last n readings with Stable = False.
+    - Once the window is full, it logs one line per reading (Power mode, as before): elapsed time, the reading, and max − min of the window.
+    - The unused `pm_enabled` parameter was removed.
+  - Scope: every measurement goes through `CalibrationWorker.measure()`, so the new check applies to Power mode and to Polarization A / B / Model Tracking, including its coarse scan.
+  - Config: `stable_window` and `sample_interval` (Refresh at Start, in s) replace `wait_time`. Refresh stays editable during a scan; a change applies from the next scan, like the other scan settings.
+  - ScanLog:
+    - Start block: "Stability : Tol 0.05 mW (max - min), Stable Window 3 s, a reading every 500 ms (Refresh), at most 60 s per measurement".
+    - Timeout event: "Not stable within 60 s at <where> (mean of the last 3 s: …)".
+  - UI:
+    - `lbl_wait_time` / `spin_wait_time` became `lbl_stable_window` / `spin_stable_window` "Stable Window (s):": 0.5-30.0 s, step 0.5, default 3.0, with a tooltip.
+    - The spin box minimum width is 70 px (was 95; the maximum is now 30.0). The longer label therefore keeps the window minimum width at 1361 px; with 95 px it was 1386 px.
+    - Tooltips updated: Stability Tol (max − min over the window), Refresh (also the scan sampling interval), and the lock-in time constant (Stable Window ≥ 5 × time constant, Refresh ≥ time constant).
+    - Version strings changed to v1.2.
+  - Tests (opto_test env):
+    - Function level:
+      - Constant + 5 µW noise, 0.5 s / 100 ms: 6 readings 0.10 s apart, stable after 0.50 s.
+      - Settling 5 + 2·exp(−t/0.3 s) mW: stable after 1.51 s, mean 0.037 mW above the final value.
+      - Drift +0.4 mW/s, i.e. 0.04 mW per reading, below Tol 0.05: not stable, ended at the timeout. The v1.1 check accepted the same drift after 4 readings.
+      - Reads of 0.25 s at a 100 ms interval: readings 0.25 s apart, with no burst.
+      - A Stop request is seen within 0.05 s.
+      - No detector: (0, stable).
+      - Defaults: 7 readings, 3.1 s.
+      - Readings per window with a virtual clock: 1.0 s / 300 ms gives 5 readings over 1.2 s; 1.1 s / 100 ms gives 12; 0.5 s / 1000 ms gives 2.
+    - Power mode, real app, default settings. Fake thermal sensor: τ = 0.8 s exponential response to each move, 0.1 s per read (the PM100D `query_delay_s`), 5° steps.
+      - 3.1 / 4.6 / 5.6 / 5.7 s per point (the first point has no power change).
+      - All points stable, recorded within 0.016 mW of the true value.
+      - v1.1 needs at least 30 s per point at its default Wait Time of 10 s.
+    - Power mode with the reading drifting +0.2 mW/s, timeout patched to 3 s: both points have Stable = False, and the ScanLog has "Not stable within 3 s at Stage 1 = …".
+    - Stop during a measurement: the worker ended at once and `_stopped` files were saved.
+    - Model Tracking, Jones-matrix fake optics as in v1.1, Refresh 100 ms, window 0.5 s:
+      - 91/91 matched, 1.42 measurements per angle (max 2).
+      - The v1.1 test gave 1.19. With the fake laser drift off, v1.1 gives 1.41 and v1.2 gives 1.24. The count depends on where the earlier solutions fall inside Target Tol, not on the version.
+      - With a virtual clock, default settings and instant reads, a full Model Tracking scan takes 6.7 min against 63.5 min for v1.1 (Wait Time 10 s).
+    - Polarization Options A and B, same fake optics, 10 Stage 2 angles, Stage 1 0-45° (virtual clock, v1.2 default window vs v1.1 Wait Time 0):
+      - A (1° steps): 0/10 matched in both versions, with 460 measurements each.
+      - B: 1/10 matched in both versions.
+      - Model Tracking: 91/91 in both.
+      - v1.2 takes 7 readings per measurement instead of 4; the decisions are the same. The low A / B match rate is their known limit: A's step is too coarse for Target Tol, and B needs the power to rise with Stage 1, but here it falls over 0-45°.
+    - Windows platform plugin: window minimum width 1361 px at 1380x920 and 1920x1040; at 1380 px the Stable Window box is 77 px wide and "30.0" fits.
+    - Not yet tested on the real PM100D / S302C. The default window should be checked against a measured step response once P0009634 is on the NI-VISA driver.
+
 ---
 
 ## Summary
