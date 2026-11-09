@@ -273,3 +273,58 @@ This document records the overall development and debugging history for the THz 
 - Change: replaced the Screenshot button's standard save icon with a camera SVG in the latest Python/UI pair. The local `camera.svg` is referenced by the UI for Qt Designer and loaded relative to the Python file at runtime. Keep this asset beside the Python/UI files when copying the system.
 - Scope: button text, tooltip, size, click handler, PNG folder/naming/replacement behavior and scan availability are unchanged. No instrument or acquisition logic changed; older versions retain their original icons.
 - Verification: native Windows screenshot checks plus temporary camera-rendering and button-width checks passed 14/14; all four systems total 58/58. Python syntax, UI/SVG XML and a comparison against the pre-change files confirm only the icon assignment/property changed in application code/UI. No real instruments were operated.
+
+### v1.61 - Created from v1.6
+- Date: 2026-11-08
+- Main change: copied the v1.6 Python/UI pair to `THz_emission_system_iTC_v1.61.py` / `THz_emission_system_iTC_v1.61.ui` as the base for the next round of modifications.
+- Details:
+  - updated the UI loading path to `THz_emission_system_iTC_v1.61.ui`, the main window title to `THz Emission Measurement System v1.61`, and the exported scan-config `application_version` to `1.61` (import does not check this field, so v1.6 recipes still load),
+  - everything else is byte-for-byte identical to v1.6 (CRLF line endings kept); v1.6 and older versions are unchanged.
+- Verification: diff against v1.6 shows only the three version lines; Python syntax and UI XML parse checks passed.
+
+### v1.61 - Analysis: sporadic Stage1 stalls during 1 um scans (no code change)
+- Date: 2026-11-08
+- Symptom (lab use of v1.6): during scans with 1 um Stage1 (PI N-565.360 / E-861) steps, most moves take tens to hundreds of ms, but occasionally the scan pauses for about 3-15 s, then continues by itself. The pauses occur at varying positions, not at one fixed position. No error is printed and the data file is complete.
+- Code facts checked:
+  - `inst_libs/physik_E861.py` `move_to()`: MOV -> 50 ms predelay -> `pitools.waitontarget()` (polls qONT every 100 ms, timeout 60 s) -> qPOS check (at most 1 s, raises on failure). Inside the move, a silent 3-15 s pause can only come from the ONT wait.
+  - The step/position display is refreshed only after a successful move, so a display stuck at point N fits both a stall while moving to N+1 and a stall while acquiring/saving point N. The last console line during a stall (`Move successful! ...` vs `Acquired data point ...`) separates the two.
+  - SR830 reads use a 1 s VISA timeout without retry and would print an error, so they are ruled out. `h5_file.flush()` writes to `C:\GUI_pyqt\THz_emission_Data` (local, not OneDrive, git-ignored); a stall there is unlikely but not excluded.
+  - No per-step timing is logged, so the stall location is inferred, not measured.
+  - `on_target_tolerance_mm` defaults to 0.001 mm, which equals the minimum scan step (positions are rounded to 0.001 mm in `generate_position_sequence`), and the check is `error <= tol`. The qPOS check therefore cannot detect a missed 1 um step; arrival currently relies on ONT alone.
+- Most likely cause (hypothesis, not measured): NEXACT step/analog mode switching. Repeated small moves in one direction use up the piezo analog range; the controller then takes a full step, overshoots and corrects back in analog mode. This is usually fast, but occasionally the axis alternates near the mode boundary, and each excursion restarts the controller's settling timer, so ONT stays false for seconds. This fits stalls at varying positions; they should correlate with the distance travelled since the last full step rather than with absolute position.
+  - Not excluded: external vibration pushing the settled axis out of the settling window (would correlate with time, e.g. a cryostat compressor or pump, not with position), or a stall outside the stage move (flush/disk).
+  - An earlier assumption of a fixed-position mechanical defect was withdrawn after the lab report that stalls occur at multiple positions.
+- Planned approach (not implemented):
+  1. Diagnosis with unchanged scan behavior: replace `waitontarget()` with an equivalent ONT polling loop that also reads qPOS; log every move longer than 1 s (target, duration, ONT toggles, min/max/final error); time move / lock-in / flush per point and summarize stalls at the end of the scan.
+  2. Fix according to the result: (A) hunting within about 0.2 um with ONT toggling -> accept arrival when qPOS stays within 0.2 um for at least 200 ms, and re-check qPOS after the lock-in reading; (B) error stays above 0.2 um while creeping -> no early acceptance; re-issue MOV, or back off a few um and re-approach from the same side; (C) stall outside the move -> investigate disk/antivirus instead. In all cases tighten the qPOS tolerance from 1 um to 0.2 um (about 1.3 fs, using the ~40 fs per ~6 um stage-travel ratio noted in the code).
+  - Constraints: no E-861 parameter changes, no pipython changes, tolerance strictly below the scan step.
+- Open questions: change the shared `physik_E861.py` (also imported by v1.0-v1.6) or enable the new behavior only in v1.61; on-site check of the last console line during a stall.
+- Side note (unrelated to the stalls): if Lock-in Realtime is checked before a scan, its GUI-thread timer keeps querying the same SR830 during the scan, concurrently with the scan thread.
+
+### v1.61 - Measurement: cause of the sporadic Stage1 stalls
+- Date: 2026-11-09
+- Setup: a standalone probe script (not part of the project) repeated the GUI's per-point sequence on the real instruments with the GUI closed: MOV -> 50 ms -> IsControllerReady/qERR -> qONT polling -> wait1 -> lock-in1 OUTP? 1/2 -> HDF5 write + flush, tracing qONT, qPOS and IsMoving every ~20 ms during each wait. 1000 x 1 um positive steps from 7.571 to 8.571 mm; E-861 VEL 5 mm/s, ACC 50; SR830 (GPIB0::3) time constant 0.3 s -> wait1 600 ms. Only MOV commands and queries were sent; no controller parameter was written; the stage was returned to 7.571 mm afterwards.
+- Controller on-target criterion (read only with `SPA?`): Settlewindow 0x36 = 10 counts at 2,000,000 counts/mm (0xE/0xF) = +/-5 nm; Settletime 0x3F = 0.01 s. ONT therefore needs the position within +/-5 nm for 10 ms.
+- Results:
+  - Move time per step: 89.6 % below 0.3 s (median 0.25 s), 7.8 % 0.3-0.5 s, 1.0 % 0.5-1 s, 0.9 % 1-3 s, 0.5 % 3-10 s, 0.2 % above 10 s (12.2 s, and one move still without ONT after 30 s). Moves of 1 s or longer lost about 87 s of 351 s total move time.
+  - In every slow move the stage was already at the target: after 0.3 s the error stayed within +/-20 nm (at most +/-15 nm), but only 0-75 % of the polls were within +/-5 nm and IsMoving stayed mostly true. The NEXACT servo keeps hunting at the nm level and never holds +/-5 nm for 10 ms, so ONT stays false. Some stalls sat at a small static offset (e.g. -8..-5.5 nm, +9..+12.5 nm). No slow creep towards the target was seen.
+  - Stalls are irregular in position (spacing 14-209 steps), with no periodic pattern.
+  - Lock-in reads took at most 31 ms and the HDF5 flush at most 3.4 ms, so acquisition/disk is ruled out.
+  - The first move after connecting took about 4.5 s because pipython sends a one-time `HLP?` query (`HasIsControllerReady()` inside `waitontarget()`); this is not a controller delay.
+- Conclusion: case (A) of the 2026-11-08 analysis. The data taken after a stall are fine (+/-15 nm is about +/-0.1 fs); the stall only costs time, but a move beyond the GUI's 60 s timeout skips the point with "Error moving Stage1 ...". The earlier mode-switching hypothesis is not needed to explain the data.
+
+### v1.61 - Stage1 arrival check: ONT or 50 nm position hold (shared `inst_libs/physik_E861.py`)
+- Date: 2026-11-09
+- Main change: `LinearStage.move_to()` in the shared PI driver no longer waits for ONT alone. An axis that has stayed within 50 nm of the target for 200 ms is accepted as arrived, so the nm-level hunting measured above no longer stalls the scan. The driver is shared, so THz Emission v1.0-v1.61 all use the new check; the v1.61 Python/UI files are not changed by this fix.
+- Details:
+  - `pipython.pitools.waitontarget()` is replaced by an own loop in the application driver: after MOV and the 50 ms predelay, `checkerror()` once (as `waitontarget()` did through `waitonready()`), then qONT + qPOS every ~20 ms (previously qONT every 100 ms).
+  - Arrival: ONT true and |qPOS - target| <= tolerance -> return at once; or |qPOS - target| <= tolerance for `position_hold_ms` (200 ms) in a row while ONT stays false -> return with a `[PI] Axis 1: ONT still false ...` console line giving the time and final error. An excursion beyond the tolerance restarts the 200 ms hold.
+  - `on_target_tolerance_mm` default 0.001 mm -> 0.00005 mm (50 nm). The old 1 um equalled the scan step, so a stage that had not moved still passed the qPOS check. 50 nm is strictly below the 1 um minimum step (positions are rounded to 0.001 mm), so an ONT flag left over from the previous move cannot be taken for arrival.
+  - Constructor parameter `settle_timeout_ms` (1 s qPOS check after ONT) replaced by `position_hold_ms=200`. No caller passed either parameter.
+  - Timeout (default 60 s, unchanged): `checkerror()` first, then `RuntimeError` with the last position, error and ONT state (was pipython's `SystemError: waitontarget() timed out`). The GUI catches both with `except Exception`.
+  - `IsControllerReady` and pipython's one-time `HLP?` are no longer queried in moves, so the first move after connecting no longer takes about 4.5 s.
+  - Not changed: E-861 parameters (ONT settle window and time), the pipython package, `home()` (still uses `waitonreferencing()`), the 50 ms predelay, the travel-range check, and the device lock.
+- Verification:
+  - Fake-controller logic test 8/8: normal ONT arrival; stale ONT at the old position; hunting within +/-15 nm accepted after the 200 ms hold; hold restarted by an 70 nm excursion; stuck 80 nm away -> timeout; ONT true but 80 nm away -> timeout; ONT true without moving (1 um away) -> timeout; out-of-range target -> ValueError. No `HLP?` query was sent.
+  - Replaying the rule on the 15 recorded slow moves (1.05-30.3 s): all would end within 0.38-0.50 s, saving about 79 s per 1000 steps.
+  - Python compile check passed. The new code has not yet been run on the real stage.

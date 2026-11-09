@@ -6,7 +6,7 @@ import threading
 import time
 
 from pipython import GCSDevice, GCSError
-from pipython.pitools import waitontarget, waitonreferencing
+from pipython.pitools import waitonreferencing
 
 
 class LinearStage:
@@ -28,14 +28,14 @@ class LinearStage:
         reference_if_needed: bool = True,
         reference_timeout_ms: int = 60000,
         move_predelay_s: float = 0.05,
-        on_target_tolerance_mm: float = 0.001,
-        settle_timeout_ms: int = 1000,
+        on_target_tolerance_mm: float = 0.00005,
+        position_hold_ms: int = 200,
     ):
         self.serial = str(controller_serial)
         self.axis = str(axis)
         self.move_predelay_s = float(move_predelay_s)
         self.on_target_tolerance_mm = float(on_target_tolerance_mm)
-        self.settle_timeout_ms = int(settle_timeout_ms)
+        self.position_hold_ms = int(position_hold_ms)
         self._lock = threading.RLock()
         self._dev = GCSDevice(devname)
 
@@ -112,11 +112,17 @@ class LinearStage:
     def move_to(self, pos_mm: float, timeout_ms: int = 60000, tolerance_mm: float | None = None):
         """Absolute move to pos_mm, blocking until the axis has really reached the target.
 
-        waitontarget() starts polling qONT right after MOV, and the controller can still report
-        the previous move's on-target flag for a few milliseconds, so on its own it can return
-        while the axis has not even started moving. move_predelay_s skips that window, and the
-        qPOS check afterwards confirms the arrival instead of trusting ONT alone (the ONT window
-        is a controller parameter and may be wider than the scan step).
+        After MOV it polls qONT and qPOS every ~20 ms (instead of pipython's waitontarget):
+        - ONT true and |qPOS - target| <= tolerance: arrived.
+        - |qPOS - target| <= tolerance for position_hold_ms in a row while ONT stays false:
+          also arrived, with a warning. The E-861 only sets ONT after the position has stayed
+          within its settle window (+/-5 nm) for 10 ms; at some targets the NEXACT servo keeps
+          hunting within about +/-15 nm for seconds (measured 2026-11-09), and waiting for ONT
+          there only costs time.
+        - Otherwise keep waiting until timeout_ms.
+        The tolerance (default 50 nm) must stay below the scan step (1 um), or a move that has not
+        started would already count as arrived. move_predelay_s skips the few milliseconds in which
+        the controller can still report the previous move's ONT flag.
         """
         pos_mm = float(pos_mm)
         if not self.min_pos <= pos_mm <= self.max_pos:
@@ -124,24 +130,42 @@ class LinearStage:
                 f"Target {pos_mm} mm is outside the travel range {self.min_pos} .. {self.max_pos} mm."
             )
         tol = self.on_target_tolerance_mm if tolerance_mm is None else float(tolerance_mm)
+        hold_s = max(self.position_hold_ms, 0) / 1000.0
         with self._lock:
             self._dev.MOV(self.axis, pos_mm)
             time.sleep(max(self.move_predelay_s, 0.0))
-            waitontarget(self._dev, axes=self.axis, timeout=max(timeout_ms, 0) / 1000.0)
+            self._dev.checkerror()  # as waitontarget() did: report a controller error raised by the move
 
-            deadline = time.time() + max(self.settle_timeout_ms, 0) / 1000.0
+            t_start = time.time()
+            deadline = t_start + max(timeout_ms, 0) / 1000.0
+            near_since = None  # first poll of the current run of polls within tolerance
             while True:
-                actual = float(self._dev.qPOS()[self.axis])
-                error_mm = abs(actual - pos_mm)
-                if error_mm <= tol:
-                    return actual
-                if time.time() >= deadline:
+                on_target = bool(self._dev.qONT(self.axis)[self.axis])
+                actual = float(self._dev.qPOS(self.axis)[self.axis])
+                now = time.time()
+                if abs(actual - pos_mm) <= tol:
+                    if on_target:
+                        return actual
+                    if near_since is None:
+                        near_since = now
+                    elif now - near_since >= hold_s:
+                        print(
+                            f"[PI] Axis {self.axis}: ONT still false after {now - t_start:.2f} s, but the "
+                            f"position stayed within {tol * 1e6:.0f} nm of {pos_mm:.4f} mm for "
+                            f"{hold_s * 1000:.0f} ms; accepted at {actual:.6f} mm "
+                            f"({(actual - pos_mm) * 1e6:+.1f} nm)."
+                        )
+                        return actual
+                else:
+                    near_since = None
+                if now >= deadline:
+                    self._dev.checkerror()  # a controller error (e.g. servo off) explains the timeout best
                     raise RuntimeError(
-                        f"Axis {self.axis} reported on-target at {actual:.5f} mm, "
-                        f"{error_mm * 1000:.2f} um away from target {pos_mm:.5f} mm "
-                        f"(tolerance {tol * 1000:.2f} um)."
+                        f"Axis {self.axis} did not reach {pos_mm:.5f} mm within {timeout_ms} ms: "
+                        f"at {actual:.5f} mm ({(actual - pos_mm) * 1e6:+.1f} nm), ONT {on_target}, "
+                        f"tolerance {tol * 1e6:.0f} nm."
                     )
-                time.sleep(0.01)
+                time.sleep(0.02)
 
     def move_by(self, delta_mm: float, timeout_ms: int = 60000, tolerance_mm: float | None = None):
         """Relative move by delta_mm, blocking until the axis is on target."""
