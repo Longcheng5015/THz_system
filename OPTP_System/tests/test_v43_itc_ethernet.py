@@ -1,12 +1,16 @@
-"""Native Qt checks for the Mercury iTC Ethernet address in Scan devices (OPTP v4.3, THz Emission v1.8).
+"""Native Qt checks for the Mercury iTC Ethernet address in Scan devices
+(OPTP v4.3, THz Emission v1.8, MO v2.8, OPTP Imaging v1.9).
 
     python OPTP_System/tests/test_v43_itc_ethernet.py [path to the GUI .py, default OPTP v4.3]
 
 Part 1 needs no hardware: local TCP listeners stand in for Ethernet instruments, and the VISA and
 Kinesis scans are replaced by fixed lists. Part 2 runs only when the Mercury iTC answers at
 192.168.50.100:7020: Scan devices, pick the Ethernet entry, Conn. Instr. (iTC only), realtime
-display, Close Instr. Only reads are sent to the controller. QSettings go to a temporary ini file.
+display, Close Instr. Only reads are sent to the controller. QSettings and the data folder go to a
+temporary directory.
 """
+import os
+import re
 import socket
 import sys
 import tempfile
@@ -18,6 +22,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / 'OPTP_system_iTC_v4.3.py'
 sys.path.insert(0, str(SRC.parent))
+os.chdir(SRC.parent)  # OPTP Imaging loads its .ui relative to the working directory
 REAL = sys.__stdout__
 LIVE = 'TCPIP0::192.168.50.100::7020::SOCKET'
 
@@ -69,16 +74,21 @@ def pump(seconds):
 
 
 # ---- tooltips ----
-ui_name = next(line.split("'")[1] for line in source.splitlines() if 'ui_path = os.path.join' in line)
+ui_name = re.search(r"'([^']+\.ui)'\)", source).group(1)  # ui_path = os.path.join(..., 'x.ui') or uiLoader.load('x.ui')
 tree = ET.parse(SRC.parent / ui_name)
 itc_tip = tree.find(".//widget[@name='iTC_res']/property[@name='toolTip']/string").text
 scan_tip = tree.find(".//widget[@name='scanDevices']/property[@name='toolTip']/string").text
-assert LIVE in itc_tip and 'ASRL11::INSTR' in itc_tip
+assert LIVE in itc_tip and re.search(r'ASRL\d+::INSTR', itc_tip)
 assert LIVE in scan_tip and 'when its port answers' in scan_tip
 report('PASS iTC_res and Scan devices tooltips name the Ethernet address')
 
 with tempfile.TemporaryDirectory(prefix='itc_ethernet_') as tmp:
     ns['QSettings'] = lambda org, name: QSettings(str(Path(tmp) / f'{org}.{name}.ini'), QSettings.IniFormat)
+
+    def setup_folder(self):
+        self.dataSave_path = tmp
+        self.ui.dataSavePath.setText(tmp)
+    ns['moSys'].setup_data_folder = setup_folder
     m = ns['moSys']()
     ui = m.ui
     ui.setAttribute(Qt.WA_DontShowOnScreen, True)

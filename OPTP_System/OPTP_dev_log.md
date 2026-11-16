@@ -903,3 +903,8 @@ The overall objective of this debug/development branch is to make the OPTP scan 
   - Fake-VISA logic test (temporary script) 7/7: serial resource opens once with `clear()` and no query; Ethernet opens once with `*IDN?` and no `clear()`; one VI_ERROR_IO drop -> second session; CONN_LOST then IO -> third session; three drops -> VisaIOError raised with every session closed; timeout -> raised after one session; `open()` on an open session does nothing.
   - Real iTC: 160 new Ethernet sessions with open + catalog + temperature: 0 failures; one real drop (VI_ERROR_IO on session 48) was reconnected automatically. `open()` median 0.33 s.
   - `OPTP_System/tests/test_v43_itc_ethernet.py` on OPTP v4.3 and THz Emission v1.8, alternated for 3 rounds: 6/6 pass including the live part (before the fix, the live part failed 2 times in 19 runs with VI_ERROR_IO on the first query).
+
+### v4.3 - `tests/test_v43_itc_ethernet.py` covers all four systems
+- Date: 2026-11-16
+- Change: the Ethernet Scan devices test now also runs on MO v2.8 and OPTP Imaging v1.9, which received the same Scan devices change. It changes into the GUI's folder (OPTP Imaging loads its .ui relative to the working directory), finds the .ui name from either `ui_path = os.path.join(..., 'x.ui')` or `uiLoader.load('x.ui')`, accepts any `ASRLn::INSTR` example in the `iTC_res` tooltip, and points the data folder to the temporary directory, so no day folder is created in the real data roots.
+- Verification: passes on OPTP v4.3, THz Emission v1.8, MO v2.8 and OPTP Imaging v1.9, including the live part on the real iTC.
