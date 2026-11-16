@@ -328,3 +328,56 @@ This document records the overall development and debugging history for the THz 
   - Fake-controller logic test 8/8: normal ONT arrival; stale ONT at the old position; hunting within +/-15 nm accepted after the 200 ms hold; hold restarted by an 70 nm excursion; stuck 80 nm away -> timeout; ONT true but 80 nm away -> timeout; ONT true without moving (1 um away) -> timeout; out-of-range target -> ValueError. No `HLP?` query was sent.
   - Replaying the rule on the 15 recorded slow moves (1.05-30.3 s): all would end within 0.38-0.50 s, saving about 79 s per 1000 steps.
   - Python compile check passed. The new code has not yet been run on the real stage.
+
+### v1.7 - Created from v1.61
+- Date: 2026-11-15
+- Main change: copied the v1.61 Python/UI pair to `THz_emission_system_iTC_v1.7.py` / `THz_emission_system_iTC_v1.7.ui` as the base for the next round of modifications.
+- Details:
+  - updated the UI loading path to `THz_emission_system_iTC_v1.7.ui`, the main window title to `THz Emission Measurement System v1.7`, and the exported scan-config `application_version` to `1.7` (import does not check this field, so older recipes still load),
+  - everything else is byte-for-byte identical to v1.61 (CRLF line endings kept), including the Stage1 arrival check from the shared `inst_libs/physik_E861.py`; v1.61 and older versions are unchanged.
+- Verification: diff against v1.61 shows only the three version lines; Python compile and UI XML parse checks passed.
+
+### v1.7 - Live Progress below ScanLog (as OPTP v4.01/v4.1)
+- Date: 2026-11-15
+- Main change: the ScanLog box on the Inst. Config. & Log tab now takes the upper half of its column, and a new read-only Live Progress box below it shows the program's console output (print and tracebacks) live during a scan. Layout and logic follow OPTP v4.01/v4.1; the OPTP files were only read.
+- UI:
+  - the right-hand ScanLog QGroupBox (row 0, column 1, rowspan 2) is wrapped in a QVBoxLayout `scanLogsColumn` (stretch 1,1, zero margins) with the new `scanProgressGroup` / `scanProgressText` below it; both boxes keep equal height when the window is resized,
+  - `scanProgressText` is copied unchanged from OPTP v4.1: Consolas 9, read-only, undo disabled, `maximumBlockCount` 1000 (older lines are dropped), tooltip "Terminal output during scanning. Display only; not saved to disk. Cleared at the start of each scan; keeps the latest 1000 lines.",
+  - the ScanLog widget subtree itself (title, font, tooltip, read-only) is unchanged.
+- Logic (same code as OPTP v4.1):
+  - new `ScanProgressStream` class: writes each text fragment to the original terminal stream and emits it through a Qt signal; no file is written,
+  - `start_scan_progress()` (called in `runScan()` right before the scan thread starts) clears Live Progress and replaces `sys.stdout` / `sys.stderr` with mirror streams; this covers print calls from the scan thread, helper threads and GUI callbacks while the scan runs,
+  - `ScanThread.progress_output = Signal(str)` is connected with `Qt.QueuedConnection` to `append_scan_progress()`, which appends the text on the GUI thread and scrolls to the end,
+  - `stop_scan_progress()` restores the original streams in `on_scan_finished()` and `on_handle_scan_error()`; the finished scan's text stays visible until the next scan; `progress_output` is disconnected with the other scan signals,
+  - imports: `sys`, `QTextCursor`. ScanLog methods (`start_scan_log`, `scan_log_event`, `append_scan_log`, `end_scan_log`) and the per-day ScanLog file are unchanged; Live Progress text does not go into ScanLog or any file. Instrument commands and scan timing are unchanged.
+- Verification: native Qt test adapted from OPTP `tests/test_v401_live_progress.py` (temporary script, isolated settings and data folder) passed: ScanLog subtree identical to v1.61; Live Progress group identical to OPTP v4.1; both boxes equal height at 1661x973 (423x412 each) and 1800x1100; read-only, 1000-line cap and no undo; success/stop/error scans mirror partial lines, helper-thread output and stderr (including the traceback) to the box while the terminal still gets them; all display updates on the GUI thread; streams restored after each end; output after the scan is not captured; ScanLog text equals its daily file and contains no Live Progress text; 1100 lines inserted keep only the newest 1000. Screenshot inspected. Python compile and UI XML checks pass. No real instruments were operated.
+
+### v1.7 - Live Process: always on from program start
+- Date: 2026-11-15
+- Main change: the box below ScanLog is renamed Live Process and shows the console output (print messages and errors) for the whole session, from program start until it quits, instead of only during scans. It is no longer cleared when a scan starts.
+- Details:
+  - UI: title `Live Progress` -> `Live Process`; tooltip now "Console output of the program (print messages and errors) since it started, shown live; the terminal still gets the same text. Display only; not saved to disk. Keeps the latest 1000 lines." Widget names (`scanProgressGroup`, `scanProgressText`), layout, read-only, undo off and the 1000-line cap are unchanged.
+  - `moSys.__init__` calls `start_console_mirror()` right after loading the .ui: `sys.stdout` / `sys.stderr` are replaced by `ConsoleMirrorStream` (renamed from `ScanProgressStream`, same code), which writes to the terminal and emits the text through a small `ConsoleSignal(QObject)`; the signal is connected with `Qt.QueuedConnection` to `append_console_text()`, so the box is only updated on the GUI thread whichever thread printed.
+  - `stop_console_mirror()` is connected to `QApplication.aboutToQuit` and hands the streams back to the terminal before the widgets are destroyed.
+  - Removed the scan-only wiring added earlier today: `ScanThread.progress_output`, `start_scan_progress()` / `stop_scan_progress()` / `append_scan_progress()` and their calls in `runScan()`, `on_scan_finished()`, `on_handle_scan_error()` and `_disconnect_scan_signals()`. Compared with v1.61, the scan code is now unchanged apart from the version strings.
+  - With Realtime lock-in display on, its per-update `Updating number box: ...` prints also appear in the box (they already went to the terminal); the 1000-line cap bounds them.
+- Verification: native Qt test (temporary script adapted from OPTP `tests/test_v401_live_progress.py`, isolated settings and data folder) passed: title/tooltip, equal-height boxes (423x412 each at 1661x973), read-only, 1000-line cap; the 9 startup lines printed inside `moSys()` appear; idle prints from the GUI thread, a helper thread and stderr appear and still reach the terminal; success/stop/error scans keep the earlier text, show partial lines, helper-thread output and the traceback, and the mirror stays installed after each scan; all 66 box updates ran on the GUI thread; the ScanLog box equals its daily file and contains no Live Process text; `aboutToQuit` restores stdout/stderr. Screenshot inspected. Python compile and UI XML checks pass. No real instruments were operated.
+
+### v1.7 - Clear Display button (as OPTP v4.1); Realtime lock-in no longer prints
+- Date: 2026-11-15
+- Main change: the action row above the Mercury iTC group on the Scan tab gets the Clear Display button that OPTP has, as its first button: [Clear Display][Screenshot][Imp. Conf.][Exp. Conf.]. The per-update `Updating number box: ...` print of the Realtime lock-in display is removed, so it no longer floods the terminal and the Live Process box.
+- Details:
+  - UI: `clearLockinDisplay` QPushButton copied unchanged from OPTP v4.1 (Fixed 140x30, font 10, tooltip "Clear Lock-in 1 and 2 X/Y traces", `mytype` clickable_button) and inserted before `saveScreenshot` in `horizontalLayout_screenshot`; the row stretch changes from 0,0,0,1 to 0,0,0,0,1. The other buttons, the spacer and the THz row spacing/margins are unchanged (OPTP's tighter 2 px spacing comes from its parent layout and would also change the chart spacing, so it was not copied).
+  - Python (same code as OPTP v4.1): the button gets the standard reset icon and calls `clear_lockin_display()`, which clears the curve, buffer and index of `lockin1XChart`, `lockin1YChart`, `lockin2XChart`, `lockin2YChart` and resets their view so the next point starts at index 0. Scan data, files and acquisition are not touched; the realtime, polarization, TDS and FDS charts are not cleared.
+  - The button is in the `always_enabled` list and in the explicit enable branch of `set_ControlsEnabledDuringScan()`, so it can be used while scanning (as in OPTP).
+  - `ChartUpdater.update()`: removed `print(f"Updating number box: ...")`; the number box is still filled with the reading.
+- Verification: native Qt test (temporary script, isolated settings and data folder) passed: the four buttons share one row in the order Clear Display, Screenshot, Imp. Conf., Exp. Conf.; Clear Display is 140x30 with the icon and its text fits; after 30 points per trace, a click empties only the four lock-in X/Y traces and the next point plots at index 0, while the realtime and polarization buffers are unchanged; the button stays enabled and works with scan controls disabled; a Realtime update with a stub lock-in prints nothing and still shows 1.5000e-06 in the number box. The Live Process test from the previous entry still passes. Rendered row checked against OPTP v4.1. Python compile and UI XML checks pass. No real instruments were operated.
+
+### v1.7 - Missing lock-in warning once per Realtime switch-on
+- Date: 2026-11-15
+- Main change: with Realtime lock-in display switched on while that lock-in is not connected, `Warning: Lockin device 'lockinN' is not connected for realDisChartN.` is now printed once per switch-on instead of on every timer tick, so it no longer floods the terminal and the Live Process box.
+- Details:
+  - `ChartUpdater.__init__` adds `self._warned_missing = False`; `toggle(True)` resets it before starting the timer; `update()` prints the warning only while it is False and then sets it. Switching Realtime off and on again gives one new warning if the lock-in is still missing.
+  - Nothing else in `update()` changes: it still returns without reading, and with a connected lock-in it reads and fills the chart and number box as before. Single-shot updates from the scan are not affected.
+  - The same change is in OPTP v4.2.
+- Verification: native Qt test (temporary script): with no lock-in, 5 updates after one switch-on and 3 after a second switch-on print the warning exactly twice; the Clear Display and Realtime number-box checks and the Live Process test still pass. Python compile check passes. No real instruments were operated.

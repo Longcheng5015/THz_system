@@ -820,3 +820,50 @@ The overall objective of this debug/development branch is to make the OPTP scan 
 - Date: 2026-10-06
 - Change: reduced scanProgressText.maximumBlockCount from 5000 to 1000 and updated its tooltip. Older progress lines are discarded automatically; the display remains readonly and is not saved. Existing ScanLog behavior is unchanged.
 - Verification: updated and passed test_v401_live_progress.py, including inserting 1100 lines and checking that the latest lines remain within the 1000-block limit, plus console mirroring, completion/stop/error cleanup and unchanged ScanLog persistence. UI XML and CRLF checks pass.
+
+### v4.1 - New version copied from v4.01
+- Date: 2026-11-08
+- Change: copied OPTP_system_iTC_v4.01.py / OPTP_iTC_main_v4.01.ui to OPTP_system_iTC_v4.1.py / OPTP_iTC_main_v4.1.ui as the base for the next changes. v4.01 is unchanged.
+  - Only the version strings differ:
+    - the .ui file the program loads;
+    - the window title, "OPTP System v4.1";
+    - application_version "4.1" in exported scan configurations.
+  - schema_version is unchanged and import checks only format and schema_version, so v4.01 and v4.1 configurations stay interchangeable.
+  - Instrument connection settings (QSettings "OPTP_System" / "InstrumentConnections") are shared with v4.01.
+- Verification:
+  - Diff against v4.01: only these three lines.
+  - Both files keep CRLF.
+  - The .py compiles, and the .ui loads with QUiLoader (title "OPTP System v4.1").
+
+### v4.2 - New version copied from v4.1
+- Date: 2026-11-15
+- Change: copied OPTP_system_iTC_v4.1.py / OPTP_iTC_main_v4.1.ui to OPTP_system_iTC_v4.2.py / OPTP_iTC_main_v4.2.ui as the base for the next changes. v4.1 is unchanged.
+  - Only the version strings differ:
+    - the .ui file the program loads;
+    - the window title, "OPTP System v4.2";
+    - application_version "4.2" in exported scan configurations.
+  - schema_version is unchanged, so v4.1 and v4.2 configurations stay interchangeable; instrument connection settings (QSettings "OPTP_System" / "InstrumentConnections") are shared.
+- Verification: diff against v4.1 shows only these three lines; both files keep CRLF; the .py compiles and the .ui parses.
+
+### v4.2 - Live Process: always on from program start (as THz Emission v1.7)
+- Date: 2026-11-15
+- Change: the box below ScanLog on the Inst. Config. & Log tab is renamed Live Process and shows the console output (print messages and errors) for the whole session, from program start until it quits, instead of only during scans. It is no longer cleared when a scan starts. The same change was made in THz Emission v1.7.
+- Details:
+  - UI: title `Live Progress` -> `Live Process`; tooltip now "Console output of the program (print messages and errors) since it started, shown live; the terminal still gets the same text. Display only; not saved to disk. Keeps the latest 1000 lines." Widget names (`scanProgressGroup`, `scanProgressText`), the 1:1 split with ScanLog, read-only, undo off and `maximumBlockCount` 1000 are unchanged.
+  - `moSys.__init__` calls `start_console_mirror()` right after loading the .ui: `sys.stdout` / `sys.stderr` are replaced by `ConsoleMirrorStream` (renamed from `ScanProgressStream`, same code), which writes to the terminal and emits the text through a small `ConsoleSignal(QObject)`; the signal is connected with `Qt.QueuedConnection` to `append_console_text()`, so the box is only updated on the GUI thread whichever thread printed.
+  - `stop_console_mirror()` is connected to `QApplication.aboutToQuit` and hands the streams back to the terminal before the widgets are destroyed.
+  - Removed the scan-only wiring from v4.01: `ScanThread.progress_output`, `start_scan_progress()` / `stop_scan_progress()` / `append_scan_progress()` and their calls in `runScan()`, `on_scan_finished()`, `on_handle_scan_error()` and `_disconnect_scan_signals()`. Scan logic, instrument commands and the ScanLog methods/file are unchanged. Import added: `QObject`.
+  - Realtime lock-in display: with a connected lock-in, `ChartUpdater.update()` prints nothing per update in v4.1 already (unlike THz Emission up to v1.61, whose `Updating number box: ...` print was removed in v1.7), so it adds nothing to the box; no change was needed. Only the warning for a Realtime display without a connected lock-in is printed, once per timer tick.
+- Verification:
+  - New `tests/test_v42_live_process.py` (native Qt, isolated QSettings and data folder) passes: ScanLog subtree identical to v4.1; title/tooltip; ScanLog and Live Process equal height at 1661x973 and 1800x1100; read-only, undo off, 1000-line cap; the 9 startup lines printed inside `moSys()` appear; idle prints from the GUI thread, a helper thread and stderr appear and still reach the terminal; 5 Realtime lock-in updates with a stub lock-in print nothing and show 2.5000e-06 in the number box; success/stop/error scans keep the earlier text, show partial lines, helper-thread output and the traceback, and the mirror stays installed after each scan; all 78 box updates ran on the GUI thread; the ScanLog box equals its daily file and contains no Live Process text; `aboutToQuit` restores stdout/stderr. Screenshot inspected.
+  - `tests/test_scan_failures.py 4.2` passes 30/30. Python compile and UI XML checks pass; both files keep CRLF. No real instruments were operated.
+  - `tests/test_v401_live_progress.py` still targets v4.01 (scan-only Live Progress) and does not apply to v4.2.
+
+### v4.2 - Missing lock-in warning once per Realtime switch-on
+- Date: 2026-11-15
+- Main change: with Realtime lock-in display switched on while that lock-in is not connected, `Warning: Lockin device 'lockinN' is not connected for realDisChartN.` is now printed once per switch-on instead of on every timer tick, so it no longer floods the terminal and the Live Process box.
+- Details:
+  - `ChartUpdater.__init__` adds `self._warned_missing = False`; `toggle(True)` resets it before starting the timer; `update()` prints the warning only while it is False and then sets it. Switching Realtime off and on again gives one new warning if the lock-in is still missing.
+  - Nothing else in `update()` changes: it still returns without reading, and with a connected lock-in it reads and fills the chart and number box as before. Single-shot updates from the scan are not affected.
+  - The same change is in THz Emission v1.7.
+- Verification: `tests/test_v42_live_process.py` extended and passing: with no lock-in, 5 updates after one switch-on and 3 after a second switch-on print the warning exactly twice, and it appears twice in Live Process; all earlier checks of that test still pass. `tests/test_scan_failures.py 4.2` passes 30/30. Python compile check passes. No real instruments were operated.
