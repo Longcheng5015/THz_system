@@ -990,7 +990,7 @@ QTabBar::tab:selected {
            <item row="0" column="6">
             <widget class="QLabel" name="lbl_stability_tol">
              <property name="toolTip">
-              <string>The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within this: max - min &lt;= Stability Tol. Used in both modes.</string>
+              <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stability Tol: absolute value or % of the reading, whichever is larger&lt;/b&gt;&lt;/p&gt;&lt;p&gt;The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within max(absolute, % x reading): max - min &amp;lt;= that. Used in both modes.&lt;/p&gt;&lt;p&gt;The absolute value is the floor at low power: set it above the detector noise there. The percentage follows the power, for the laser fluctuations at high power. 0 % = absolute value only.&lt;/p&gt;&lt;p&gt;To measure the noise: Power mode, Stage 1 Step NO. 1 at the angle of interest, both values 0. The point never passes, and for 60 s the log shows max - min of every window.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
              </property>
              <property name="text">
               <string>Stability Tol (mW):</string>
@@ -998,31 +998,85 @@ QTabBar::tab:selected {
             </widget>
            </item>
            <item row="0" column="7">
-            <widget class="QDoubleSpinBox" name="spin_stability_tol">
-             <property name="minimumSize">
-              <size>
-               <width>95</width>
-               <height>0</height>
-              </size>
+            <layout class="QHBoxLayout" name="layout_stability_tol">
+             <property name="spacing">
+              <number>4</number>
              </property>
-             <property name="toolTip">
-              <string>The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within this: max - min &lt;= Stability Tol. Used in both modes.</string>
-             </property>
-             <property name="decimals">
-              <number>3</number>
-             </property>
-             <property name="maximum">
-              <double>100.000000000000000</double>
-             </property>
-             <property name="value">
-              <double>0.050000000000000</double>
-             </property>
-            </widget>
+             <item>
+              <widget class="QDoubleSpinBox" name="spin_stability_tol">
+               <property name="minimumSize">
+                <size>
+                 <width>95</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stability Tol: absolute value or % of the reading, whichever is larger&lt;/b&gt;&lt;/p&gt;&lt;p&gt;The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within max(absolute, % x reading): max - min &amp;lt;= that. Used in both modes.&lt;/p&gt;&lt;p&gt;The absolute value is the floor at low power: set it above the detector noise there. The percentage follows the power, for the laser fluctuations at high power. 0 % = absolute value only.&lt;/p&gt;&lt;p&gt;To measure the noise: Power mode, Stage 1 Step NO. 1 at the angle of interest, both values 0. The point never passes, and for 60 s the log shows max - min of every window.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="decimals">
+                <number>4</number>
+               </property>
+               <property name="maximum">
+                <double>100.000000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.002000000000000</double>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="lbl_stability_tol_or">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stability Tol: absolute value or % of the reading, whichever is larger&lt;/b&gt;&lt;/p&gt;&lt;p&gt;The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within max(absolute, % x reading): max - min &amp;lt;= that. Used in both modes.&lt;/p&gt;&lt;p&gt;The absolute value is the floor at low power: set it above the detector noise there. The percentage follows the power, for the laser fluctuations at high power. 0 % = absolute value only.&lt;/p&gt;&lt;p&gt;To measure the noise: Power mode, Stage 1 Step NO. 1 at the angle of interest, both values 0. The point never passes, and for 60 s the log shows max - min of every window.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="text">
+                <string>or</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="spin_stability_tol_pct">
+               <property name="minimumSize">
+                <size>
+                 <width>50</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>50</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;body&gt;&lt;p&gt;&lt;b&gt;Stability Tol: absolute value or % of the reading, whichever is larger&lt;/b&gt;&lt;/p&gt;&lt;p&gt;The reading counts as stable when all readings in the last Stable Window (one every Refresh) lie within max(absolute, % x reading): max - min &amp;lt;= that. Used in both modes.&lt;/p&gt;&lt;p&gt;The absolute value is the floor at low power: set it above the detector noise there. The percentage follows the power, for the laser fluctuations at high power. 0 % = absolute value only.&lt;/p&gt;&lt;p&gt;To measure the noise: Power mode, Stage 1 Step NO. 1 at the angle of interest, both values 0. The point never passes, and for 60 s the log shows max - min of every window.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="buttonSymbols">
+                <enum>QAbstractSpinBox::NoButtons</enum>
+               </property>
+               <property name="suffix">
+                <string> %</string>
+               </property>
+               <property name="decimals">
+                <number>2</number>
+               </property>
+               <property name="maximum">
+                <double>10.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="value">
+                <double>0.500000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
            </item>
            <item row="0" column="8">
             <widget class="QLabel" name="lbl_target_tol">
              <property name="toolTip">
-              <string>Polarization mode: a Stage 1 angle is accepted when |P - Target Power| is no more than this and the power is stable. Not used in Power mode.</string>
+              <string>Polarization mode: a Stage 1 angle is accepted when |P - Target Power| is no more than this and the power is stable. Keep it at least the Stability Tol at the target, otherwise noise can keep a stable reading from matching. Not used in Power mode.</string>
              </property>
              <property name="text">
               <string>Target Tol (mW):</string>
@@ -1038,10 +1092,10 @@ QTabBar::tab:selected {
               </size>
              </property>
              <property name="toolTip">
-              <string>Polarization mode: a Stage 1 angle is accepted when |P - Target Power| is no more than this and the power is stable. Not used in Power mode.</string>
+              <string>Polarization mode: a Stage 1 angle is accepted when |P - Target Power| is no more than this and the power is stable. Keep it at least the Stability Tol at the target, otherwise noise can keep a stable reading from matching. Not used in Power mode.</string>
              </property>
              <property name="decimals">
-              <number>3</number>
+              <number>4</number>
              </property>
              <property name="maximum">
               <double>100.000000000000000</double>

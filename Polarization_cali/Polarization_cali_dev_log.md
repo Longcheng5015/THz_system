@@ -463,6 +463,187 @@ This document records the overall development and debugging history for the Pola
     - Windows platform plugin: window minimum width 1361 px at 1380x920 and 1920x1040; at 1380 px the Stable Window box is 77 px wide and "30.0" fits.
     - Not yet tested on the real PM100D / S302C. The default window should be checked against a measured step response once P0009634 is on the NI-VISA driver.
 
+### Polarization_cali v1.2 (Stability Tol: absolute or % of the reading)
+- **Date**: 2026-11-03
+- **Main Change**: Stability Tol now has two parts: an absolute value and a new percentage of the reading. A window is stable when max − min ≤ the larger of the two. The power can now go down to the µW level while the top of a Power scan is at mW. A single absolute Tol could not cover that range: 50 µW is larger than the signal at the bottom, and a few µW is smaller than the laser fluctuation at the top, so every high-power point would wait the full 60 s. Both Tol boxes now have 4 decimals (0.1 µW steps).
+- **Details**:
+  - `check_power_stability(..., tolerance_pct=0.0, ...)`:
+    - The effective tolerance is `max(tolerance_mw, tolerance_pct / 100 · |mean of the window|)`.
+    - The `[Power Stability]` log line shows the effective tolerance and both parts, e.g. "Tol: 0.0500 mW = max(0.002 mW, 0.5 %)".
+    - Applies to every measurement (Power mode and Polarization A / B / Model Tracking), through `measure()` and the new config key `stability_tol_pct`.
+  - Target Tol stays absolute: the target is fixed during a Polarization scan, so a percentage adds nothing. Its tooltip now says to keep it at least the Stability Tol at the target.
+  - UI (`grid_config` column 7 is now `layout_stability_tol`):
+    - `spin_stability_tol` (absolute, label "Stability Tol (mW):" / "(mV):" as before): 4 decimals, default **0.0020 mW** (was 0.050).
+    - New label `lbl_stability_tol_or` "or".
+    - New `spin_stability_tol_pct`: suffix " %", 0-10.00, 2 decimals, step 0.1, default **0.50 %**, no arrow buttons, 50 px wide.
+    - The three widgets share one tooltip. It explains the rule, how to choose the two values, and how to measure the noise: Power mode, Stage 1 Step NO. 1, both values 0, so the point never passes and the log shows max − min of every window for 60 s.
+    - `spin_target_tol`: 4 decimals (default 0.0500 unchanged).
+  - ScanLog start block: "Stability : Tol 0.002 mW or 0.5 % of the reading, whichever is larger (max - min), Stable Window 3 s, …".
+  - The defaults 2 µW / 0.5 % are a starting point. The absolute value must be above the detector's max − min at the lowest power, and the percentage above the laser's at the highest. Both still need to be measured on the real detector.
+  - Layout: the window minimum width rises from 1361 to 1430 px, so the window now opens 1430 px wide instead of the .ui's 1380. This PC's screen is 1920x1080. All values fit, including the maxima "10000.000", "100.0000", "10.00 %" and "30.0". `powerChart` is unchanged (217 px at 920 px window height).
+  - Tests (opto_test env, virtual clock). Fake detector noise: 0.3 µW + 0.1 % of the reading; window 3 s, Refresh 500 ms.
+    - Constant power, three settings:
+
+      | Power | 50 µW, 0 % | 2 µW, 0 % | 2 µW, 0.5 % |
+      |---|---|---|---|
+      | 10 mW | stable at 3.0 s | timeout (60 s) | stable at 3.0 s |
+      | 1 mW | stable at 3.0 s | 7.0 s | stable at 3.0 s |
+      | 100 µW down to 2 µW | stable at 3.0 s | stable at 3.0 s | stable at 3.0 s |
+
+    - A reading still settling, 5 µW + 4 µW·exp(−t/2 s), with 2 µW / 0.5 %: stable after 4.0 s, recorded 6.3 µW, i.e. at low power the accuracy is set by the absolute value.
+    - Power scan 0-45° (10 mW·cos²(2θ1) + 2 µW leakage), 10 points, real app:
+      - 2 µW / 0.5 %: all 10 stable, 30 s in total.
+      - 2 µW / 0 %: 6 high-power points not stable, 397 s, 6 ScanLog events.
+      - 50 µW / 0 %: all stable, 30 s.
+      - The ScanLog line and the log line read as above.
+    - Polarization, Jones-matrix fake optics from the v1.1 tests, with 5 µW constant noise:
+      - With the new default floor of 2 µW, below that noise: Model Tracking still 91/91 matched but 11.1 min instead of 6.7. A and B slow down a lot, because low-power readings never pass and wait 60 s.
+      - With the floor at 0.02 mW (about 4x the noise) and 0.5 %, the results equal the earlier ones: A 0/10 in 23.4 min, B 1/10 in 4.6 min, Model Tracking 91/91 in 6.7 min.
+      - So an absolute value below the real noise makes the scan slow, not wrong.
+    - Windows platform plugin at 1380x920 (opens at 1430) and 1920x1040: nothing clipped.
+
+### Polarization_cali v1.3 (Wait Time + Avg. No.: stability check, then a separate averaged reading; plot x = angle)
+- **Date**: 2026-11-03
+- **Files**: `Polarization_cali_v1.3.py` / `.ui`, copied from v1.2 including its uncommitted Tol % change. v1.2 is kept unchanged for comparison.
+- **Background**: the first real S302C scans at 0-30 µW were rougher with v1.2 than with v1.1.
+  - Point-to-point noise: about 1 µW with v1.1 versus 2-4 µW with v1.2 Tol 1 µW.
+  - Near extinction the readings jumped between about −2 and +4 µW.
+  - A 20 s Stable Window did not help.
+  - The cause is not settled yet.
+  - The user asked for an explicit, simple sequence in which the number of averaged readings is set directly, not derived from Window / Refresh.
+- **Main Change**: every measurement, in Power mode and in Polarization A / B / Model Tracking (`measure()`), now runs these steps:
+  1. **Wait Time** (s) after the stage move has finished (`move_to` blocks until the stage arrives).
+  2. **Stability check**:
+     - Readings are taken every **Refresh + 0.1 s**, counted from the end of the previous reading. The PM100D query itself adds its own 0.1 s query delay, so at Refresh 500 ms the readings are about 0.7 s apart.
+     - The check passes when max − min of the last **Avg. No.** readings ≤ max(Tol, % × reading).
+     - If not, one more reading is taken and the last Avg. No. are checked again, at most 60 s.
+  3. **Reading**: Avg. No. **new** readings are taken, and their mean is the recorded value.
+     - If the check timed out, the reading is still taken and the point is recorded with Stable = False plus a ScanLog event ("Not stable within 60 s at …, recorded the mean of N readings").
+- **Details**:
+  - `check_power_stability(detector, wait_s, n_avg, interval_s, tolerance_mw, tolerance_pct, stop_flag_check, logger)`:
+    - New constant `READ_EXTRA_WAIT_S = 0.1`.
+    - A Stop during Wait Time reads once and returns that reading. A Stop during the check or the reading returns the last reading. In every case Stable = False and the Stop is seen within 0.1 s.
+    - The `[Power Stability]` log line's time now counts from the end of Wait Time.
+    - New log line `[Power Reading] mean of N readings: … (max - min …)`.
+  - Config keys `wait_time`, `n_avg` replace `stable_window`; `sample_interval` = Refresh.
+  - UI (`grid_config` row 0):
+    - Columns 10-11: `lbl_wait_time` "Wait Time (s):" and `spin_wait_time` (0-60 s, step 0.5, default **2.0**, min 70 px). These replace `lbl_stable_window` / `spin_stable_window`.
+    - Columns 12-13: new `lbl_avg_no` "Avg. No.:" and `spin_avg_no` (2-100, default **5**, min 60 px).
+    - The run row's colspan goes from 12 to 14.
+    - Tooltips updated: Wait Time, Avg. No., Stability Tol (4 copies), Refresh, lock-in time constant (keep Wait Time ≥ 5 × TC).
+  - ScanLog start block: "Stability : Wait Time 2 s after each move, then a reading every 500 ms (Refresh) + 0.1 s; stable when max - min of the last 5 readings <= Tol … (at most 60 s); then the mean of 5 new readings is recorded (Avg. No.)".
+  - Live plot x-axis: the scanned angle instead of the point index.
+    - Power mode: Stage 1, label "Stage 1 Angle (°)".
+    - Polarization mode: Stage 2, label "Stage 2 Angle (°)".
+    - Before a scan the label is "Angle (°)".
+  - Defaults: Wait 2 s, Avg. No. 5, Refresh 500 ms. That is about 2 + 9 × 0.7 ≈ 8.3 s per point plus the move.
+    - The v1.1 "Wait 3 s" timing can be reproduced: Refresh 2900 ms, Wait Time 0 and Avg. No. 4 give 4 check readings 3 s apart, then 4 more.
+- **Tests** (opto_test env, virtual clock, fake read time 0.1 s):
+  - Function:
+    - Constant power: readings at 2.1, 2.8, … 8.4 s, i.e. 0.7 s apart end to end. Stable at the 5th reading, then 5 new readings; recorded value = their mean.
+    - Settling 10 µW·exp(−t/1 s) with Wait 0: the check passes at reading 8; the recorded value is the mean of readings 9-13 only.
+    - Noise 5 µW with Tol 1 µW: Stable False after 60 s, then the 5 new readings (65.8 s, 92 readings).
+    - % term: 100 mW with 0.05 % noise passes at 2 µW / 0.5 % and times out at 2 µW / 0 %.
+    - Stop at 1 s (in Wait), 3 s (in check) and 6 s (in reading): returns within 0.1 s with Stable False.
+    - No detector: (0.0, True).
+  - App with fake stages and PM100D:
+    - Power 0-45° (10 points): all stable, 9.5 s/point, 100 reads. Plot x = Stage 1 angles, label "Stage 1 Angle (°)".
+    - Polarization Model Tracking 4/4 matched, B 4/4.
+    - A 0/4: its 5° grid does not reach Target Tol in this fake, unrelated to this change.
+    - In all Polarization runs the plot x = Stage 2 angles. ScanLog lines as above.
+  - Windows platform plugin: the window minimum width rises from 1430 to 1526 px (opens 1526 wide; screen 1920). At 1380 and 1920 nothing is clipped, including "60.0" and "100".
+  - Not yet run on the real PM100D / S302C.
+- **Stage 1 default serial**: `init_device_defaults` now puts **27255354** in the Stage 1 serial box (was 27004364, OPTP's). Stage 2 / 3 (27255894) are unchanged. The Scan button still offers every Kinesis serial found on the PC.
+- **One Tolerance for both modes (Target Tol removed)**: Stability Tol and Target Tol were two tolerances for the same reading, so the user asked to merge them. The UI label is now **"Tolerance (mW):"** / "(mV):"; it keeps the absolute value and the %.
+  - The stability check is unchanged: max − min of the last Avg. No. readings ≤ max(absolute, % × reading).
+  - Polarization mode (A, B, Model Tracking), target reached: the reading is stable and |P − Target Power| ≤ max(absolute, % × Target Power).
+    - The worker computes `target_tol` once from `stability_tol` / `stability_tol_pct` at the start of the scan.
+    - The config key `target_tol` is gone.
+    - With the defaults (0.002 mW / 0.5 %) and a 5 mW target, the match window is ±0.025 mW (Target Tol was 0.05 mW).
+  - Object names (`spin_stability_tol`, `spin_stability_tol_pct`, `lbl_stability_tol`, config `stability_tol`) are kept, to limit the change.
+  - UI:
+    - `lbl_target_tol` and `spin_target_tol` removed.
+    - Wait Time / Avg. No. move to columns 8-11; the run row colspan goes back to 12.
+    - The Tolerance tooltip (4 copies) describes both uses; the Avg. No. tooltip says "within Tolerance".
+  - ScanLog:
+    - The Target line is now "Target : 5 mW, reached when |P - target| <= Tolerance (0.025 mW at the target)".
+    - The Stability line reads "<= Tolerance …".
+  - Model Tracking log line: "target 5.0 ± 0.025 mW". The Model Tracking and Option A tooltips say "Tolerance".
+  - Tests (virtual clock, fake optics):
+    - Power: 10/10 stable.
+    - Model Tracking: 4/4 matched, all at ±0.025 mW.
+    - B: 4/4 matched.
+    - A: 0/4, its 5° grid as before.
+    - Plot x = angles; ScanLog lines as above.
+  - Windows platform plugin: the window minimum width drops from 1526 to 1321 px, so the window opens at the .ui's 1380 again. Nothing is clipped.
+- **Stability check on a fixed 5 readings; Avg. No. only for the recorded mean**: the user wants Avg. No. to mean just the readings averaged after the reading is stable.
+  - New constant `STABILITY_N = 5`. The check passes when max − min of the last 5 readings ≤ Tolerance, whatever Avg. No. is. There is no UI box for it.
+  - Avg. No. is used only in step 3: after the check, Avg. No. new readings are averaged.
+    - No max − min is computed on them: the `[Power Reading]` log line is now just "mean of N readings: …".
+    - `spin_avg_no` minimum lowered from 2 to 1 (a single reading is allowed).
+  - Tooltips: Avg. No. rewritten; Tolerance (4 copies) now says "the last 5 readings".
+  - ScanLog Stability line: "stable when max - min of the last 5 readings <= Tolerance …; then the mean of N new readings is recorded (Avg. No.)".
+  - Tests (virtual clock):
+    - With Avg. No. 1 / 5 / 10, a steady reading passes the check at the 5th reading, then takes 1 / 5 / 10 more, and the recorded value is their mean.
+    - Settling 10 µW·exp(−t/1 s) with Avg. No. 10: the check passes at reading 8 on its 5-reading window.
+    - App: Power 10/10, Model Tracking 4/4, B 4/4, A 0/4 as before.
+- **Stable No. in the UI**: the number of readings in the stability check can now be set, replacing the constant `STABILITY_N`.
+  - `check_power_stability(detector, wait_s, n_stable, n_avg, interval_s, tolerance_mw, tolerance_pct, ...)`; new config key `n_stable`.
+  - UI (`grid_config` row 0):
+    - Columns 10-11: new `lbl_stable_no` "Stable No.:" and `spin_stable_no` (2-100, default **5**, min 60 px), with its own tooltip.
+    - Avg. No. moves to columns 12-13; the run row colspan goes to 14.
+    - Order on screen: Wait Time → Stable No. → Avg. No., the order in which they act.
+  - Tooltips: Tolerance (4 copies) and Avg. No. now say "the last Stable No. readings".
+  - ScanLog Stability line: "stable when max - min of the last 5 readings (Stable No.) <= Tolerance …".
+  - Tests (virtual clock, read 0.1 s):
+    - Stable No. / Avg. No. = 2/1, 3/5, 5/5, 8/3 and 10/10: exactly Stable No. + Avg. No. readings, and the recorded value is the mean of the last Avg. No. (Wait 2 s, Refresh 500 ms: 3.5 s up to 15.4 s per point).
+    - Settling 10 µW·exp(−t/1 s), Wait 0, Tol 2 µW: Stable No. 3 / 5 / 8 pass after reading 5 / 8 / 11. The recorded value is then 0.105 / 0.013 / 0.002 µW above the final value.
+    - Timeout and Stop as before.
+    - App: Power 10/10, Model Tracking 4/4, B 4/4, A 0/4.
+  - Windows platform plugin: the window minimum width rises from 1321 to 1450 px (opens 1450 wide; screen 1920). "60.0" and "100" fit in all three boxes.
+- **Run row order**: Exit moves to the right of Stop, and the five buttons move to the right of Prefix (.ui only, `layout_run`).
+  - New order: Save Dir: [path] Browse... Prefix: [pol_cali] | Conn. Inst. Close Inst. | Start Stop Exit.
+  - New 16 px `prefix_gap_spacer` between the Prefix box and Conn. Inst. `run_gap_spacer` (16 px) still separates Close Inst. from Start.
+  - The path box still takes the spare width, so the buttons sit at the right end of the row.
+  - Windows platform plugin: the minimum width stays 1450 px, and every label fits. At 1450 px Exit ends at x 1392; at 1920 px it ends at x 1862.
+- **Stable No. / Avg. No. moved to the second row; narrower path box**: the top row was too crowded (.ui only).
+  - `lbl_stable_no` / `spin_stable_no` / `lbl_avg_no` / `spin_avg_no` move from `grid_config` row 0 (columns 10-13) to the start of `layout_run`. A 16 px `stable_gap_spacer` follows them. Row 0 now has 10 columns, and the run row colspan goes back to 10.
+  - The second row now reads: Stable No. [5] Avg. No. [5] | Save Dir: [path] Browse... Prefix: [pol_cali] | Conn. Inst. Close Inst. | Start Stop Exit.
+  - `line_save_dir`: at most **400 px** wide. Before, it took all the spare width, 710 px at 1450 px. The longest default path, `...\September\September_30`, needs 346 px.
+  - `layout_run` stretch: only `line_save_dir` is 1, so the path box takes the spare width first, up to 400 px.
+  - `prefix_gap_spacer` is now `MinimumExpanding` (at least 16 px). It takes the width beyond that, so the buttons stay at the right end.
+  - `spin_stable_no` / `spin_avg_no`: at most 70 px. In the box layout they would otherwise take their 99 px size hint.
+  - Windows platform plugin:
+    - The minimum width drops from 1450 to about 1345 px, so the window opens at the .ui size of 1380 px.
+    - Path box: 361 px at 1380, 400 px at 1450 and 1920.
+    - The default path (344 px) and "100" in both number boxes fit at all three widths.
+  - App test (fake devices): Power 10/10, Model Tracking 4/4, B 4/4, A 0/4, as before.
+- **Raw Avg. No. readings saved with the mean**: each point keeps the Avg. No. readings its value is the mean of. The mean stays where it was; the raw readings are appended. The live plot still shows the mean.
+  - `check_power_stability` now returns `(reading, is_stable, raw)`:
+    - Normally, `raw` is the n_avg readings whose mean is `reading`.
+    - After a Stop (in Wait, the check or the averaging), `raw` is `[reading]`, the one reading that is recorded.
+    - Without a detector, `raw` is `[]`.
+  - `measure()` passes `raw` on. Each point dict gets `"raw"`:
+    - Power mode: the point's readings.
+    - Option A / B: those of the matched measurement, or of the last one if not matched, like `power_mw`.
+    - Model Tracking: those of the recorded (matched or closest) measurement.
+    - The Model Tracking coarse scan saves only its means, as before.
+  - `start_calibration` stores `self.scan_n_avg` (Avg. No. of the scan). `save_data` builds `raw_arr`, points × Avg. No., NaN-padded.
+  - Files:
+    - **CSV**: the existing columns `Point_Idx,…,Power_mW,Stable,Measurements` are unchanged. Avg. No. columns `Power_mW_raw1 … Power_mW_rawN` follow (`Signal_mV_raw…` with the lock-in), 4 decimals like the mean. Blank where a point cut short by Stop has only one reading.
+    - **MAT / HDF5**: new 2-D `power_mW_raw` (`signal_mV_raw`), points × Avg. No., NaN-padded. The existing variables are unchanged.
+  - Readers:
+    - `ScanDataCore.parse_calibration_file` reads columns 0-4 by position, so the extra columns don't affect it.
+    - `Polarization_fit_v1.0.py` loads every HDF5 dataset with `[:]`, so the 2-D dataset loads.
+  - Tests (opto_test env, virtual clock, fake devices):
+    - Function, Avg. No. 1 / 3 / 5 / 10: `raw` is the last Avg. No. readings and their mean equals the reading exactly. A Stop in Wait / check / averaging gives `raw == [reading]`.
+    - App scans:
+      - Power (Avg. No. 3); Power stopped in the 5th point's check and after 2 of its 5 averaged readings; Model Tracking / A / B (Avg. No. 4).
+      - In every scan: the mean of `raw` equals the recorded value and the plot shows the mean.
+      - The CSV header and widths are right. MAT / HDF5 `power_mW_raw` has shape points × Avg. No. and its NaN-mean equals `power_mW`. `ScanDataCore` and the fit tool's HDF5 load still work.
+      - The stopped point's CSV row: `4,20.00,0.00,,5.8765,False,,5.8765,,,,`.
+    - Stable No. test unchanged.
+
 ---
 
 ## Summary

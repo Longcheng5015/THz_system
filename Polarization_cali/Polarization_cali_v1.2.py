@@ -92,14 +92,15 @@ def list_lockin_resources() -> list:
 STABILITY_TIMEOUT_S = 60.0  # a measurement that has not settled after this long is recorded with Stable = False
 
 
-def check_power_stability(detector, window_s: float, tolerance_mw: float, interval_s: float,
+def check_power_stability(detector, window_s: float, tolerance_mw: float, interval_s: float, tolerance_pct: float = 0.0,
                            stop_flag_check=None, logger=None) -> tuple[float, bool]:
     """
     Function to check if the detector reading (PowerMeterReader: mW, LockinReader: mV) is stable.
     Reads it every interval_s (Refresh) and looks at the last n = ceil(window_s / interval_s) + 1 readings, which cover
-    at least window_s (Stable Window). Stable as soon as max - min of these n readings <= tolerance_mw (in the detector's unit);
-    returns their mean. Right after a stage move the readings still change, so the window does not pass until the
-    detector has settled: no separate wait is needed. max - min also catches a slow drift in one direction.
+    at least window_s (Stable Window). Stable as soon as max - min of these n readings <= max(tolerance_mw,
+    tolerance_pct % of their mean): the absolute value (in the detector's unit) is the floor at low power, the percentage
+    follows the power. Returns their mean. Right after a stage move the readings still change, so the window does not pass
+    until the detector has settled: no separate wait is needed. max - min also catches a slow drift in one direction.
     After STABILITY_TIMEOUT_S without that it gives up and returns the mean of the last n readings with is_stable False.
     A stop request returns the last reading with is_stable False.
 
@@ -119,13 +120,16 @@ def check_power_stability(detector, window_s: float, tolerance_mw: float, interv
         window = readings[-n:]
 
         if len(readings) >= n:
+            mean = float(np.mean(window))
             spread = max(window) - min(window)
+            tol = max(tolerance_mw, tolerance_pct / 100.0 * abs(mean))
             if logger:
                 u = detector.unit
                 logger(f"[Power Stability] {t_read - t0:.1f} s: {readings[-1]:.4f} {u} | "
-                       f"last {n} readings: max - min {spread:.4f} {u} (Tol: {tolerance_mw:.4f} {u})")
-            if spread <= tolerance_mw:
-                return float(np.mean(window)), True
+                       f"last {n} readings: max - min {spread:.4f} {u} "
+                       f"(Tol: {tol:.4f} {u} = max({tolerance_mw:g} {u}, {tolerance_pct:g} %))")
+            if spread <= tol:
+                return mean, True
 
         if time.monotonic() - t0 >= STABILITY_TIMEOUT_S:
             return float(np.mean(window)), False  # timed out: not stable
@@ -229,7 +233,7 @@ class CalibrationWorker(QThread):
     def measure(self, where: str, logger=None) -> tuple[float, bool]:
         """check_power_stability with this scan's settings; a reading that does not settle is a ScanLog event."""
         reading, stable = check_power_stability(self.detector, self.config["stable_window"], self.config["stability_tol"],
-                                                self.config["sample_interval"],
+                                                self.config["sample_interval"], self.config["stability_tol_pct"],
                                                 stop_flag_check=lambda: self._is_stopped, logger=logger)
         if not stable and not self._is_stopped and self.detector is not None:
             self.scan_event(f"Not stable within {STABILITY_TIMEOUT_S:g} s at {where} "
@@ -1300,7 +1304,8 @@ class PolarizationCaliApp(QMainWindow):
             lines.append("Detector    : none (readings recorded as 0)")
         if polar:
             lines.append(f"Target      : {ui.spin_target_power.value():g} {unit}, Target Tol {ui.spin_target_tol.value():g} {unit}")
-        lines.append(f"Stability   : Tol {ui.spin_stability_tol.value():g} {unit} (max - min), Stable Window "
+        lines.append(f"Stability   : Tol {ui.spin_stability_tol.value():g} {unit} or {ui.spin_stability_tol_pct.value():g} % "
+                     f"of the reading, whichever is larger (max - min), Stable Window "
                      f"{ui.spin_stable_window.value():g} s, a reading every {ui.spin_pm_refresh.value()} ms (Refresh), "
                      f"at most {STABILITY_TIMEOUT_S:g} s per measurement")
         for n in (1, 2, 3):
@@ -1385,6 +1390,7 @@ class PolarizationCaliApp(QMainWindow):
             "polar_algo": self.ui.combo_polar_search.currentText(),
             "target_power": self.ui.spin_target_power.value(),
             "stability_tol": self.ui.spin_stability_tol.value(),
+            "stability_tol_pct": self.ui.spin_stability_tol_pct.value(),  # % of the reading; the larger of the two counts
             "target_tol": self.ui.spin_target_tol.value(),
             "stable_window": self.ui.spin_stable_window.value(),
             "sample_interval": self.ui.spin_pm_refresh.value() / 1000.0,  # Refresh (ms): stability check reads this often
