@@ -82,10 +82,34 @@ class MercuryiTC:
     
     
     def open(self) -> None:
-        """Open connection to instrument."""
+        """Open connection to instrument.
+
+        The iTC sometimes drops a freshly accepted Ethernet connection (2026-11-16: 7 of 80 new
+        sessions; the first command fails with VI_ERROR_IO and the session is lost, while a new
+        session works). A SOCKET session is therefore checked with *IDN? and reopened, up to 3
+        attempts. A timeout is not retried. USB / serial / GPIB sessions open as before.
+        """
         if self._inst is not None:
             return
-            
+        attempts = 3 if 'SOCKET' in self.resource else 1
+        for attempt in range(1, attempts + 1):
+            self._open_session()
+            if attempts == 1:
+                return
+            try:
+                self._inst.query('*IDN?')  # the first command shows whether the session survived
+                return
+            except pyvisa.errors.VisaIOError as e:
+                self.close()
+                dropped = e.error_code in (pyvisa.constants.StatusCode.error_io,
+                                           pyvisa.constants.StatusCode.error_connection_lost)
+                if not dropped or attempt == attempts:
+                    raise
+                print(f"MercuryiTC Ethernet session dropped on open ({e.abbreviation}); "
+                      f"reconnecting ({attempt + 1}/{attempts})...")
+
+    def _open_session(self) -> None:
+        """Open and configure one VISA session."""
         self._rm = pyvisa.ResourceManager()
         self._inst = self._rm.open_resource(self.resource)
         self._inst.timeout = self.timeout_ms
@@ -113,11 +137,13 @@ class MercuryiTC:
             self._inst.read_termination = '\n'
             self._inst.write_termination = '\n'
         
-        # Clear any pending data
-        try:
-            self._inst.clear()
-        except:
-            pass
+        # Clear any pending data. Not on Ethernet: a fresh SOCKET session has nothing pending, and
+        # viClear there failed or preceded a dropped connection more often (5 vs 2 drops in 40 sessions).
+        if 'SOCKET' not in self.resource:
+            try:
+                self._inst.clear()
+            except:
+                pass
         
         # Flush input buffer
         # old_timeout = self._inst.timeout

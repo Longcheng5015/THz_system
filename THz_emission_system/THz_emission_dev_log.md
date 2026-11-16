@@ -381,3 +381,41 @@ This document records the overall development and debugging history for the THz 
   - Nothing else in `update()` changes: it still returns without reading, and with a connected lock-in it reads and fills the chart and number box as before. Single-shot updates from the scan are not affected.
   - The same change is in OPTP v4.2.
 - Verification: native Qt test (temporary script): with no lock-in, 5 updates after one switch-on and 3 after a second switch-on print the warning exactly twice; the Clear Display and Realtime number-box checks and the Live Process test still pass. Python compile check passes. No real instruments were operated.
+
+### v1.8 - Created from v1.7
+- Date: 2026-11-16
+- Main change: copied the v1.7 Python/UI pair to `THz_emission_system_iTC_v1.8.py` / `THz_emission_system_iTC_v1.8.ui` as the base for the next debugging round.
+- Details:
+  - updated the UI loading path to `THz_emission_system_iTC_v1.8.ui`, the main window title to `THz Emission Measurement System v1.8`, and the exported scan-config `application_version` to `1.8` (import does not check this field, so older recipes still load),
+  - everything else is byte-for-byte identical to v1.7 as pushed in commit 090a714 (CRLF kept; default tab Scan; always-on Live Process, Clear Display, warn-once Realtime check, Stage1 arrival check from the shared `inst_libs/physik_E861.py`); v1.7 is unchanged.
+- Verification: v1.7 matched the pushed commit before copying; diff against v1.7 shows only the three version lines; Python compile and UI XML checks passed.
+
+### v1.8 - Mercury iTC over Ethernet: test, and Scan devices offers the Ethernet address
+- Date: 2026-11-16
+- Ethernet test of the Mercury iTC (2026-11-16, read-only queries plus writes of the values already held; scripts outside the project):
+  - PC port `Ethernet 2` 192.168.50.10/24 without gateway, direct link to the iTC at 192.168.50.100 (MAC 00-10-A5-20-24-A1, Oxford Instruments); TCP port 7020 open. IDN `OXFORD INSTRUMENTS:MERCURY ITC:134750012:2.6.04.000`; catalog `MB0.H1` (HTR), `MB1.T1` (TEMP).
+  - With the shared `MercuryiTC` class and `TCPIP0::192.168.50.100::7020::SOCKET` (the library already handles SOCKET resources): setpoint, VLIM, PID state, temperature and heater % read correctly; 100 x (temperature + heater %) median 8.9 ms, max 91 ms, no error; setpoint (ramp off) and VLIM written back with their current values -> VALID, read back unchanged; a query after 3 min idle and a close/reopen work.
+  - GUI path with the unchanged v1.8 code and the address typed into `iTC_res`: Conn. Instr. 0.7-0.9 s, LED on, Target T / HeaterLim / Auto PID synced, realtime display reads the temperature, Close Instr. disconnects.
+  - Open issue (not fixed, outside the approved change): about 2-12 % of new Ethernet sessions are dropped by the iTC right after the connection is accepted, so the first query fails with VI_ERROR_IO and the session is lost (VI_ERROR_CONN_LOST). 40 sessions with the library's `clear()`: 5 failures; 40 without `clear()`: 2. Reopening the session recovered every case. Established sessions showed no errors. In the GUI it appears as an occasional "MercuryiTC connection failed"; pressing Conn. Instr. again connects.
+  - The saved USB resource `ASRL11::INSTR` was not present during the test, and the VISA resource list was empty.
+- Main change: Scan devices also offers the Mercury iTC Ethernet address, so it can be picked from the drop-down list instead of typed. VISA cannot list raw SOCKET resources, so the GUI checks the known address and any SOCKET address already entered by opening its TCP port.
+- Details:
+  - `ITC_SOCKETS = ('TCPIP0::192.168.50.100::7020::SOCKET',)` class constant next to `VISA_BOXES`.
+  - New `reachable_sockets()`: for `ITC_SOCKETS` plus any `...::SOCKET` text in a VISA box (duplicates removed, order kept), `socket.create_connection((host, port), timeout=0.5)`; addresses that accept are returned, refused/unreachable or malformed ones are skipped. Only a TCP connect and close, nothing is sent; an open iTC session is not disturbed (checked).
+  - `scan_devices()`: the answering SOCKET addresses are appended to the VISA list, so they appear in every VISA drop-down after the VISA resources; entered values are still kept. A missing iTC adds at most 0.5 s to Scan devices. No other network address is probed.
+  - UI tooltips: `iTC_res` now names both forms (`ASRL11::INSTR` for USB/serial, `TCPIP0::192.168.50.100::7020::SOCKET` for Ethernet); Scan devices mentions the Ethernet address check.
+  - Import added: `socket`. The shared `Oxford_mercuryiTC_Thread.py` is unchanged.
+  - The same change is in OPTP v4.3.
+- Verification: `OPTP_System/tests/test_v43_itc_ethernet.py <v1.8 .py>` passes: tooltips; with local TCP listeners and fixed VISA/Kinesis lists, Scan devices lists the answering SOCKET addresses after the VISA list in every VISA box, skips a refused and a malformed one, keeps the entered values (0.5 s), and drops an address whose port stopped answering; live: Scan devices offers the iTC address, it is picked from the list, Conn. Instr. reads MB1.T1/MB0.H1, the realtime display shows the temperature, Close Instr. disconnects. Python compile and UI XML checks pass; CRLF kept.
+
+### v1.8 - Mercury iTC library: reconnect when an Ethernet session is dropped on open (shared `inst_libs/Oxford_mercuryiTC_Thread.py`)
+- Date: 2026-11-16
+- Main change: fixes the open issue noted in the previous entry. The shared `inst_libs/Oxford_mercuryiTC_Thread.py` now reconnects when the Mercury iTC drops a freshly opened Ethernet session, so Conn. Instr. on Ethernet no longer fails now and then.
+- Details:
+  - `MercuryiTC.open()`: the existing open/configure code moved unchanged into `_open_session()`. For a SOCKET resource, `open()` sends `*IDN?` right after opening; on VI_ERROR_IO or VI_ERROR_CONN_LOST it closes the session, prints `MercuryiTC Ethernet session dropped on open (...); reconnecting (n/3)...` and opens a new one, up to 3 attempts; the last error is raised if all fail. A timeout is raised at once without retry, so a silent instrument does not wait 3 x 5 s.
+  - `viClear` (`clear()`) is no longer sent on SOCKET sessions: a fresh socket has nothing pending, and with it the drops were more frequent (5 vs 2 in 40 sessions; once `clear()` itself failed).
+  - USB / serial / GPIB resources: one session, `clear()` and the 0.3 s wait exactly as before, no extra query. The library is shared by MO, OPTP, OPTP image and THz emission (all versions); only SOCKET resources behave differently.
+- Verification:
+  - Fake-VISA logic test (temporary script) 7/7: serial resource opens once with `clear()` and no query; Ethernet opens once with `*IDN?` and no `clear()`; one VI_ERROR_IO drop -> second session; CONN_LOST then IO -> third session; three drops -> VisaIOError raised with every session closed; timeout -> raised after one session; `open()` on an open session does nothing.
+  - Real iTC: 160 new Ethernet sessions with open + catalog + temperature: 0 failures; one real drop (VI_ERROR_IO on session 48) was reconnected automatically. `open()` median 0.33 s.
+  - `OPTP_System/tests/test_v43_itc_ethernet.py` on OPTP v4.3 and THz Emission v1.8, alternated for 3 rounds: 6/6 pass including the live part (before the fix, the live part failed 2 times in 19 runs with VI_ERROR_IO on the first query).
