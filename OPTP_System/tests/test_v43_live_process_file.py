@@ -1,4 +1,4 @@
-"""Native Qt checks for the Live Process file (OPTP v4.3, THz Emission v1.8).
+"""Native Qt checks for the Live Process file (OPTP v4.3, THz Emission v1.8, MO v2.9, OPTP Imaging v2.0).
 
 Everything the Live Process box shows is also appended at once to LiveProcess_YYYY-MM-DD.txt in the
 data folder, from program start until it quits.
@@ -8,6 +8,7 @@ data folder, from program start until it quits.
 No hardware. QSettings and the data folder go to a temporary directory.
 """
 import io
+import os
 import sys
 import tempfile
 import threading
@@ -18,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else ROOT / 'OPTP_system_iTC_v4.3.py'
 sys.path.insert(0, str(SRC.parent))
+os.chdir(SRC.parent)  # OPTP Imaging loads its .ui relative to the working directory
 REAL = sys.__stdout__
 
 

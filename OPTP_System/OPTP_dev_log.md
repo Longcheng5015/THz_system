@@ -927,3 +927,8 @@ The overall objective of this debug/development branch is to make the OPTP scan 
   - `tests/test_v42_live_process.py` run on v4.3 (temporary copy with the path changed) still passes.
   - `tests/test_scan_failures.py 4.3` and `4.2` pass 30/30. Before the test change, 4.3 failed the 7 "rejected before start" checks only because of the new file.
   - Python compile and UI XML checks pass; CRLF kept. No real instruments were operated. `tests/test_v43_itc_ethernet.py` was not rerun: its live part connects to the real iTC, and this change does not touch the iTC path.
+
+### v4.3 - `tests/test_v43_live_process_file.py` covers all four systems
+- Date: 2026-11-18
+- Change: MO v2.9 and OPTP Imaging v2.0 received the same Live Process box and file. The test now changes into the GUI's folder (OPTP Imaging loads its .ui relative to the working directory); the checks are unchanged. OPTP v4.3 code is unchanged.
+- Verification: passes on OPTP v4.3, THz Emission v1.8, MO v2.9 and OPTP Imaging v2.0.
