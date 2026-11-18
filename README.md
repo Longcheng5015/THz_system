@@ -27,7 +27,7 @@ Older versions stay in each system folder (THz Emission v1.0-v1.61 in `THz_emiss
 - **Interface screenshots:** Screenshot captures the visible application interface, including plots and the selected tabs, during or after a scan. It saves beside the current/latest data file with the same basename and a `.png` extension; before the first scan, it uses the selected data folder and the system's time/mode/suffix naming convention. In OPTP (v4.01 and later) each click saves a separate PNG with a date/time suffix; in the other systems repeated clicks update the same screenshot.
 - **Scan configurations:** **Imp. Conf. / Exp. Conf.** beside Screenshot load/save JSON recipes for each system's stage/rotary scan settings, ordered temperature list, acquisition waits, beam controls and power-record settings, plus its own additional scan controls. Import validates the complete recipe and referenced calibration file, then restores the UI/model without operating instruments. Hardware settings, live readouts and data paths are excluded. Each system has a distinct format identifier to prevent cross-system imports. Import is disabled during scans; export remains available and saves current UI values. Calibration files remain external and must be available when importing.
 - **Data and logs:** HDF5 measurement files and a daily `ScanLog_YYYY-MM-DD.txt` containing scan conditions and progress events.
-- **Live Process (OPTP, THz Emission):** below ScanLog on the Inst. Config. & Log tab, a read-only box shows the program's console output (print messages and errors) from program start until it quits. The terminal still receives the same text; nothing is saved to disk; the latest 1000 lines are kept and the box is not cleared between scans.
+- **Live Process (OPTP, THz Emission):** below ScanLog on the Inst. Config. & Log tab, a read-only box shows the program's console output (print messages and errors) from program start until it quits. The terminal still receives the same text; the box keeps the latest 1000 lines and is not cleared between scans. Since OPTP v4.3 and THz Emission v1.8, the same text is also appended at once to a daily `LiveProcess_YYYY-MM-DD.txt` in the data folder, which keeps everything (one header per program session); in OPTP v4.2 and THz Emission v1.7 it is display only.
 
 ## System features
 
@@ -40,7 +40,7 @@ Changes since v3.9:
 - **v4.0:** manual **Home** buttons for Stage1 and Stage2 beside their iPos inputs; a new **Go to T** first stops the running temperature-stabilization worker before sending the setpoint. If it does not stop within 2 s, a manual request is rejected and an automated scan request ends the scan with an error.
 - **v4.01:** the current stage positions and rotary angle are shown before a peak search starts; Save Name refreshes as soon as a scan starts; each Screenshot click saves a separate timestamped PNG.
 - **v4.2:** Live Process console view below ScanLog (see Shared capabilities). A Realtime lock-in display without a connected lock-in prints its warning once per switch-on instead of on every update.
-- **v4.3:** Scan devices offers the Mercury iTC Ethernet address (see Shared capabilities).
+- **v4.3:** Scan devices offers the Mercury iTC Ethernet address (see Shared capabilities). Live Process output is also saved to a daily `LiveProcess_YYYY-MM-DD.txt`.
 
 - **Scan modes:** `THz_Scan` for THz waveforms, `1D_THz` for pump-delay traces at a fixed THz detection position, `2D_THz` for a full THz waveform at each pump delay, and `POL_2D` for polarization scans.
 - **Peak tracking:** **Drift comp.** enables the two-round search around `TDS Ppos` in every mode, with or without temperature scanning. The initial search runs before acquisition, once per temperature when ScanT is active. In `1D_THz`, changing active rotary angles also triggers a search before the first sweep at the new angles, even with Stage2 Repeat = 1 or Re-peak OFF. Searches use the current planned angles, including interpolated calibration angles. A fixed-Stage1 `1D_THz` scan follows the found peak directly; other modes and multi-point Stage1 scans retain their window offset. Stage2 compensates the actual Stage1 correction according to Forward/Reverse. Drift comp. OFF disables all automatic searches.
@@ -80,7 +80,7 @@ THz emission measurements using a **PI N-565.360 / E-861** Stage1 and a Thorlabs
 - Stage1 arrival is checked before Lock-in acquisition. For waveform scans, Stage1 is the innermost sweep, acquiring a complete trace at each Stage2 position.
 - **Stage1 arrival (since v1.61, shared PI driver):** a move is complete when the E-861 reports on-target within 50 nm, or when the position has stayed within 50 nm of the target for 200 ms while the controller is still hunting at the nm level. This removes the occasional multi-second stalls seen with 1 µm steps; the 50 nm tolerance stays well below the 1 µm step.
 - **v1.7:** Live Process console view below ScanLog (see Shared capabilities); **Clear Display** in the Scan-tab action row clears the four Lock-in X/Y traces, also during a scan; the Realtime lock-in display no longer prints every update, and its missing-lock-in warning appears once per switch-on.
-- **v1.8:** Scan devices offers the Mercury iTC Ethernet address.
+- **v1.8:** Scan devices offers the Mercury iTC Ethernet address. Live Process output is also saved to a daily `LiveProcess_YYYY-MM-DD.txt`.
 - Polarization scans, independent/coupled rotary motion, temperature stabilization and sample-soak waits.
 - PM100D display and configuration, Zero, pump-power Record, AutoBlock and daily ScanLog.
 
@@ -201,10 +201,12 @@ Checks for the current versions:
 
 ```powershell
 python OPTP_System/tests/test_v42_live_process.py
+python OPTP_System/tests/test_v43_live_process_file.py
+python OPTP_System/tests/test_v43_live_process_file.py THz_emission_system/THz_emission_system_iTC_v1.8.py
 python OPTP_System/tests/test_v43_itc_ethernet.py
 python OPTP_System/tests/test_v43_itc_ethernet.py MO_System/MO_system_iTC_v2.8.py
 python OPTP_System/tests/test_v43_itc_ethernet.py OPTP_image_System/OPTP_iTC_image_v1.9.py
 python OPTP_System/tests/test_v43_itc_ethernet.py THz_emission_system/THz_emission_system_iTC_v1.8.py
 ```
 
-`test_v42_live_process.py` checks the always-on Live Process box of OPTP v4.2 (unchanged in v4.3). `test_v43_itc_ethernet.py` checks the Ethernet address in Scan devices with local stand-in ports; when the Mercury iTC answers at 192.168.50.100, it also connects to it (reads only) through Scan devices, Conn. Instr., the realtime display and Close Instr. Hardware verification status and pending work are tracked in [OPTP_handoff.md](OPTP_System/OPTP_handoff.md).
+`test_v42_live_process.py` checks the always-on Live Process box of OPTP v4.2. `test_v43_live_process_file.py` checks the daily `LiveProcess_YYYY-MM-DD.txt` of OPTP v4.3 or THz Emission v1.8 (startup text, threads, a failed scan, folder and date changes, an unwritable folder, closing on quit). `test_v43_itc_ethernet.py` checks the Ethernet address in Scan devices with local stand-in ports; when the Mercury iTC answers at 192.168.50.100, it also connects to it (reads only) through Scan devices, Conn. Instr., the realtime display and Close Instr. Hardware verification status and pending work are tracked in [OPTP_handoff.md](OPTP_System/OPTP_handoff.md).

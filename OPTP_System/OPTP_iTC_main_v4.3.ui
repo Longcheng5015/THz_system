@@ -8040,7 +8040,7 @@ A loaded calibration table uses Rot2 as the master.&lt;/p&gt;&lt;/body&gt;&lt;/h
                     </font>
                    </property>
                    <property name="toolTip">
-                    <string>Console output of the program (print messages and errors) since it started, shown live; the terminal still gets the same text. Display only; not saved to disk. Keeps the latest 1000 lines.</string>
+                    <string>Console output of the program (print messages and errors) since it started, shown live; the terminal still gets the same text. Also appended to LiveProcess_YYYY-MM-DD.txt in the data folder (one file per day, everything kept). The box keeps the latest 1000 lines.</string>
                    </property>
                    <property name="readOnly">
                     <bool>true</bool>

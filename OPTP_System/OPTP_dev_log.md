@@ -908,3 +908,22 @@ The overall objective of this debug/development branch is to make the OPTP scan 
 - Date: 2026-11-16
 - Change: the Ethernet Scan devices test now also runs on MO v2.8 and OPTP Imaging v1.9, which received the same Scan devices change. It changes into the GUI's folder (OPTP Imaging loads its .ui relative to the working directory), finds the .ui name from either `ui_path = os.path.join(..., 'x.ui')` or `uiLoader.load('x.ui')`, accepts any `ASRLn::INSTR` example in the `iTC_res` tooltip, and points the data folder to the temporary directory, so no day folder is created in the real data roots.
 - Verification: passes on OPTP v4.3, THz Emission v1.8, MO v2.8 and OPTP Imaging v1.9, including the live part on the real iTC.
+
+### v4.3 - Live Process saved to a daily file `LiveProcess_YYYY-MM-DD.txt` (as THz Emission v1.8)
+- Date: 2026-11-18
+- Change: everything the Live Process box shows (print messages and errors since program start) is now also appended to `LiveProcess_YYYY-MM-DD.txt` in the data folder. Since v4.2 Live Process was display only by design, so nothing was left after the program closed. The box is unchanged (latest 1000 lines); the file keeps everything. Same code as THz Emission v1.8.
+- Details:
+  - `start_console_mirror()`: the mirror streams now call `mirror_console_text()`, which writes the text to the file (`write_console_file()`) and then sends it to the box as before.
+  - `write_console_file()` runs on whichever thread printed, under one RLock shared by stdout and stderr. The file is `<dataSave_path>/LiveProcess_<date of writing>.txt`, opened in append mode and kept open; every write is flushed, so a crash or forced close loses nothing already printed. Text printed before `setup_data_folder()` sets the data folder (about 10 startup lines) is held and written first.
+  - Each time the file is opened in a session, a header is written: a blank line, 72 `=`, `Session started YYYY-MM-DD HH:MM:SS - OPTP System v4.3`, 72 `-`. Several sessions on the same day append to the same file.
+  - The file follows the data folder: after it changes (a custom folder, or the new day folder that `runScan()` sets), the next print opens the file there with a new header. After midnight the text goes to a file named with the new date; until the next scan moves the data folder, that file is in the previous day's folder.
+  - If the file cannot be opened or written (for example the folder was removed), one `Warning: could not write Live Process file ...` goes to the terminal and the box (written directly, not through print); printing carries on, and the file is tried again when the folder or the date changes.
+  - `stop_console_mirror()` (on `aboutToQuit`) closes the file after handing the streams back. While the program runs, the day's file can be read (for example in Notepad) but not deleted or renamed.
+  - ScanLog is unchanged and separate. `ConsoleMirrorStream` code is unchanged (docstring updated).
+  - UI: `scanProgressText` tooltip now "Console output of the program (print messages and errors) since it started, shown live; the terminal still gets the same text. Also appended to LiveProcess_YYYY-MM-DD.txt in the data folder (one file per day, everything kept). The box keeps the latest 1000 lines." Nothing else in the .ui changes.
+  - Tests: new `tests/test_v43_live_process_file.py [GUI .py]` (default OPTP v4.3). `tests/test_scan_failures.py` changes: (1) the "rejected before start" check now ignores `LiveProcess_*` files, because the rejection message is logged there; still no data file is written; (2) the startup data folder is the test's temporary folder, so the test no longer creates a day folder or log in the real `OPTP_Data`; (3) the console mirror is stopped before the temporary folder is removed (v4.2+), because Windows cannot delete the open file.
+- Verification:
+  - `tests/test_v43_live_process_file.py` passes on v4.3 and on THz Emission v1.8 (checks listed in the THz Emission v1.8 entry).
+  - `tests/test_v42_live_process.py` run on v4.3 (temporary copy with the path changed) still passes.
+  - `tests/test_scan_failures.py 4.3` and `4.2` pass 30/30. Before the test change, 4.3 failed the 7 "rejected before start" checks only because of the new file.
+  - Python compile and UI XML checks pass; CRLF kept. No real instruments were operated. `tests/test_v43_itc_ethernet.py` was not rerun: its live part connects to the real iTC, and this change does not touch the iTC path.

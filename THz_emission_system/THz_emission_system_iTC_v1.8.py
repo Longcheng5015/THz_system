@@ -53,7 +53,7 @@ class ConsoleSignal(QObject):
     text = Signal(str)
 
 class ConsoleMirrorStream:
-    """Mirror console text through a Qt signal without creating any log file."""
+    """Pass console text to the terminal and to a callback (the Live Process box and file)."""
     def __init__(self, terminal, emit):
         self.terminal = terminal
         self.emit = emit
@@ -2397,18 +2397,25 @@ class moSys:
             self.append_scan_log(line)
 
     def start_console_mirror(self):
-        """Mirror stdout/stderr into the Live Process box from program start until it quits.
+        """Mirror stdout/stderr into the Live Process box and file from program start until it quits.
 
-        The terminal still gets every line and nothing is written to disk. print() may come from any
-        thread; the text reaches the box through a queued signal. The box keeps the latest 1000 lines
-        (maximumBlockCount in the .ui) and is not cleared between scans.
+        The terminal still gets every line. print() may come from any thread; the text reaches the box
+        through a queued signal and is appended at once to LiveProcess_<date>.txt in the data folder
+        (write_console_file). The box keeps the latest 1000 lines (maximumBlockCount in the .ui) and is
+        not cleared between scans; the file keeps everything.
         """
         self._console_signal = ConsoleSignal()
         self._console_signal.text.connect(self.append_console_text, Qt.QueuedConnection)
+        self._console_file_lock = threading.RLock()  # shared by stdout and stderr, which have their own locks
+        self._console_file = None
+        self._console_file_path = None
+        self._console_pending = []  # text printed before the data folder is set
+        self._console_session = f"Session started {datetime.now():%Y-%m-%d %H:%M:%S} - {self.ui.windowTitle()}"
+        self._console_terminal = sys.stderr  # file-write warnings go here directly, never through print()
         self._console_streams = []
         for name in ('stdout', 'stderr'):
             terminal = getattr(sys, name)
-            stream = ConsoleMirrorStream(terminal, self._console_signal.text.emit)
+            stream = ConsoleMirrorStream(terminal, self.mirror_console_text)
             self._console_streams.append((name, terminal, stream))
             setattr(sys, name, stream)
         # hand the streams back before the widgets are destroyed, so prints during shutdown still work
@@ -2421,6 +2428,52 @@ class moSys:
                 if getattr(sys, name) is stream:
                     setattr(sys, name, terminal)
         self._console_streams.clear()
+        self.close_console_file()
+
+    def mirror_console_text(self, text: str):
+        """Called by the mirror streams from any thread."""
+        self.write_console_file(text)
+        self._console_signal.text.emit(text)
+
+    def write_console_file(self, text: str):
+        """Append console text to LiveProcess_<date>.txt in the current data folder (any thread).
+
+        Text printed before the data folder is set is written first. Every write is flushed, so a crash
+        loses nothing. A new data folder or a new day opens a new file with a session header. If the file
+        cannot be written, one warning goes to the terminal and the box, and the file is tried again when
+        the folder or the day changes. Must not print(): that would come back here.
+        """
+        with self._console_file_lock:
+            self._console_pending.append(text)
+            folder = getattr(self, 'dataSave_path', None)
+            if not folder:
+                return
+            path = os.path.join(folder, f"LiveProcess_{datetime.now():%Y-%m-%d}.txt")
+            try:
+                if path != self._console_file_path:
+                    self.close_console_file()
+                    self._console_file_path = path
+                    self._console_file = open(path, 'a', encoding='utf-8')
+                    self._console_file.write(f"\n{'=' * 72}\n{self._console_session}\n{'-' * 72}\n")
+                if self._console_file is not None:
+                    self._console_file.write(''.join(self._console_pending))
+                    self._console_file.flush()
+            except OSError as e:
+                self.close_console_file()
+                warning = f"Warning: could not write Live Process file {path}: {e}\n"
+                if self._console_terminal is not None:
+                    self._console_terminal.write(warning)
+                self._console_signal.text.emit(warning)
+            self._console_pending.clear()
+
+    def close_console_file(self):
+        with self._console_file_lock:
+            if self._console_file is not None:
+                try:
+                    self._console_file.close()
+                except OSError:
+                    pass
+                self._console_file = None
 
     @Slot(str)
     def append_console_text(self, text: str):

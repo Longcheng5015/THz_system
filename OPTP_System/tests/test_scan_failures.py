@@ -30,6 +30,12 @@ app = QApplication.instance() or QApplication([])
 QMessageBox.question = staticmethod(lambda *a, **k: QMessageBox.Yes)
 warnings = []
 QMessageBox.warning = staticmethod(lambda *a, **k: warnings.append(a[2]))
+
+
+def temp_data_folder(self):  # keeps the startup output (v4.3 LiveProcess file) out of the real OPTP_Data
+    self.dataSave_path = TMP.name
+    self.ui.dataSavePath.setText(TMP.name)
+ns['moSys'].setup_data_folder = temp_data_folder
 m = ns['moSys']()
 ui = m.ui
 results = []
@@ -295,7 +301,7 @@ def rejected_before_start(label, error_text):
             app.processEvents(); time.sleep(0.005)
         assert not m.scan_Thread.isRunning(), 'unexpected worker did not stop'
     check(label, same_worker and len(warnings) == 1 and error_text in warnings[0]
-          and not signals and not list(folder.iterdir())
+          and not signals and not [p for p in folder.iterdir() if not p.name.startswith('LiveProcess_')]
           and not m.stage1.calls and not m.stage2.calls and not m.lockin1.reads and not m.lockin2.reads
           and not m.mercuryiTC.targets and not m.flipmount.moves and ui.realtimeDisp1.isChecked()
           and active == [getattr(ui, name).isChecked() for name in ('activeLockin1', 'activeLockin2', 'activeStage1', 'activeStage2')])
@@ -363,6 +369,7 @@ check('initial drift correction outside travel aborts before file creation/acqui
       and signals[0][0] == 'error' and m.flipmount.p == 2)
 
 m.ui.close()
+getattr(m, 'stop_console_mirror', lambda: None)()  # v4.2+: v4.3 closes its open LiveProcess file here
 TMP.cleanup()
 print(f'\n{sum(results)}/{len(results)} passed')
 sys.exit(0 if all(results) else 1)
