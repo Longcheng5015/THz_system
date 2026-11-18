@@ -1,6 +1,7 @@
 """Latest-system coupled scans with unchecked axes; real scan workers, fake instruments.
 
-Run with optp/mo/img/thz. No instrument connections, visible UI or registry writes.
+Run with optp/mo/img/thz, optionally followed by the path of another version of that system
+(for example MO_System/MO_system_iTC_v3.0.py). No instrument connections, visible UI or registry writes.
 """
 import itertools
 import os
@@ -18,7 +19,7 @@ FILES = {
     'img': 'OPTP_image_System/OPTP_iTC_image_v1.8.py',
     'thz': 'THz_emission_system/THz_emission_system_iTC_v1.6.py',
 }
-src = ROOT / FILES[SYSTEM]
+src = ROOT / (sys.argv[2] if len(sys.argv) > 2 else FILES[SYSTEM])
 os.chdir(src.parent)
 sys.path.insert(0, str(src.parent))
 source = src.read_text(encoding='utf-8-sig')
@@ -62,6 +63,7 @@ class Stage:
     def move_to(self, position):
         self.pos = position
         self.moves.append(position)
+        return position  # as the PI driver (THz Emission Stage1), which v1.9 relies on; others ignore it
 
     def position(self):
         return self.pos
@@ -83,6 +85,9 @@ class Lockin:
 
     def get_y(self):
         return 0.0
+
+    def snap(self, *params):  # SNAP? 1,2 (OPTP v4.4, MO v3.0, OPTP Imaging v2.1, THz Emission v1.9)
+        return [self.get_x(), self.get_y()]
 
 
 def reset(active=(True, True, False), counts=(3, 3, 1), coupled=True, mode=None):

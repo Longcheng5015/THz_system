@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 VERSION = sys.argv[1] if len(sys.argv) > 1 else '3.5'
 SRC = ROOT / f'OPTP_system_iTC_v{VERSION}.py'
+NEW_READS = tuple(map(int, VERSION.split('.'))) >= (4, 4)  # v4.4: one SNAP? per lock-in, no 50 ms gap between X and Y
 source = SRC.read_text(encoding='utf-8-sig')
 ns = {'__file__': str(SRC), '__name__': 'optp_failure_test'}
 exec(compile(source[:source.rindex('app = QApplication()')], str(SRC), 'exec'), ns)
@@ -88,6 +89,7 @@ class Lockin:
 
     def get_x(self): return self.read('x')
     def get_y(self): return self.read('y')
+    def snap(self, *params): return [self.read('x'), self.read('y')]  # SNAP? 1,2 (v4.4+): X then Y, one query
 
 
 class Mount:
@@ -184,7 +186,9 @@ data, paths, log = run()
 check('initial move error: no readings, file closed, beam blocked', not m.lockin1.reads and np.isnan(data['lockin1_X']).all()
       and m.flipmount.p == 2 and 'Scan error' in log)
 
-reset(); m.stage2 = Stage(fail_at=3)
+# the move to the second Stage2 point fails: before v4.4 that is Stage2's 3rd command (initial, point 1, point 2);
+# from v4.4 the first point is already at the initial target and is not commanded again, so it is the 2nd
+reset(); m.stage2 = Stage(fail_at=2 if NEW_READS else 3)
 data, paths, log = run()
 check('point move error: earlier point preserved, remaining points NaN', data['lockin1_X'][0] == 1
       and np.isnan(data['lockin1_X'][1:]).all() and m.lockin1.reads == ['x', 'y'])
@@ -214,7 +218,7 @@ for connected in (False, True):
     try: data, paths, log = run()
     finally: ns['time'] = real_time
     check(f'Lock-in 2 alone (Lock-in 1 connected={connected}): full wait, inactive device unread',
-          sleeps == [0.2, 0.05] * 3 and not inactive.reads and np.all(data['lockin2_X'] == 1))
+          sleeps == ([0.2] if NEW_READS else [0.2, 0.05]) * 3 and not inactive.reads and np.all(data['lockin2_X'] == 1))
 
 reset(); ui.activeLockin2.setChecked(False)
 data, paths, log = run()

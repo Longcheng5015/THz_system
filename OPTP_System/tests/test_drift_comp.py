@@ -90,6 +90,7 @@ class FakeLockin:
         # maximum on the window edge nearest to it)
         return float(np.exp(-d * d / (2 * SIGMA * SIGMA)) + 1e-3 * np.exp(-abs(d) / 0.5))
     def get_y(self): return 0.0
+    def snap(self, *params): return [self.get_x(), self.get_y()]  # SNAP? 1,2 (v4.4+)
     def close(self): pass
 
 
