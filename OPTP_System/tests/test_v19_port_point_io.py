@@ -140,6 +140,9 @@ def signal_value(offset):
     return offset + pos('stage1') + pos('stage2') / 1000 + pos('rotary2') / 100
 
 
+REALTIME_READ_S = [0.0]  # duration of a Realtime read (reader thread only)
+
+
 class Lockin:
     def __init__(self, name, offset, fail_on=()):
         self.name, self.offset, self.fail_on, self.snaps = name, offset, set(fail_on), 0
@@ -154,6 +157,8 @@ class Lockin:
 
     def get_x(self):
         calls.append((self.name, 'get_x', None))
+        if type(QThread.currentThread()).__name__ == 'RealtimeReader':
+            time.sleep(REALTIME_READ_S[0])  # a Realtime reader thread (from THz v2.0 / OPTP v4.5 / MO v3.1 / Imaging v2.2)
         return signal_value(self.offset)
 
     def get_y(self):
@@ -252,7 +257,9 @@ def run():
     during.clear()
     during.update(jog_enabled=[getattr(ui, n).isEnabled() for n in JOGS],
                   realtime=[ui.realtimeDisp1.isChecked(), ui.realtimeDisp2.isChecked()],
-                  timers=[m.chart_updaters[c].timer.isActive() for c in ('realDisChart1', 'realDisChart2')])
+                  timers=[realtime_active(m.chart_updaters[c]) for c in ('realDisChart1', 'realDisChart2')],
+                  readers_running=[getattr(m.chart_updaters[c], 'reader', None) is not None
+                                   and m.chart_updaters[c].reader.isRunning() for c in ('realDisChart1', 'realDisChart2')])
     if m.scan_Thread is not previous:
         deadline = time.monotonic() + 30
         while m.scan_Thread.isRunning():
@@ -276,6 +283,41 @@ def moves(device):
 
 def count(device, method):
     return sum(1 for dev, meth, _ in calls if dev == device and meth == method)
+
+
+def count_after_first_snap(device, method):
+    """Calls of 'method' after the first SNAP? of this device, i.e. after the scan started reading it. A
+    Realtime reader thread may still read once between calls.clear() and the scan start."""
+    first = next((i for i, (dev, meth, _) in enumerate(calls) if dev == device and meth == 'snap'), len(calls))
+    return sum(1 for dev, meth, _ in calls[first:] if dev == device and meth == method)
+
+
+def realtime_active(updater):
+    """Realtime display running: the QTimer up to THz v1.9 / OPTP v4.4 / MO v3.0 / Imaging v2.1, then a reader
+    thread that has not been asked to stop."""
+    reader = getattr(updater, 'reader', None)
+    return updater.timer.isActive() if reader is None else reader.isRunning() and not reader.stop_requested()
+
+
+def realtime_update(name):
+    """One Realtime reading shown in chart 'name': the QTimer slot up to THz v1.9 / OPTP v4.4 / MO v3.0 /
+    Imaging v2.1; from the next versions the reader thread is switched on until its first reading is shown."""
+    updater = m.chart_updaters[name]
+    if getattr(updater, 'reader', None) is None:
+        updater.update()
+        return
+    index = m.indices[name]
+    interval = updater.interval
+    updater.update_Interval(10000)  # exactly one reading: the first read starts at once, the next 10 s later
+    button = getattr(ui, 'realtimeDisp' + name[-1])
+    button.setChecked(True)
+    deadline = time.monotonic() + 3
+    while m.indices[name] == index and time.monotonic() < deadline:
+        app.processEvents()
+        time.sleep(0.002)
+    button.setChecked(False)
+    updater.reader.wait(3000)
+    updater.update_Interval(interval)
 
 
 def changes(axis_index):
@@ -439,6 +481,7 @@ check("Lock-in 2 connected but its 'active' box unticked: never read, stored as 
 
 # ---- 6. Realtime on before the scan; Jog during the scan ----
 reset()
+REALTIME_READ_S[0] = 0.3  # runScan() must wait for a Realtime read in progress
 ui.realtimeDisp1.setChecked(True)
 ui.realtimeDisp2.setChecked(True)
 calls.clear()
@@ -450,8 +493,10 @@ before = count('lockin1', 'get_x') + count('lockin2', 'get_x')
 data = run()
 check('Realtime on before the scan: switched off and stopped at scan start, no OUTP? during the scan, still off after',
       before > 0 and during['realtime'] == [False, False] and during['timers'] == [False, False]
-      and all(count(n, 'get_x') == 0 for n in ('lockin1', 'lockin2'))
+      and during['readers_running'] == [False, False]
+      and all(count_after_first_snap(n, 'get_x') == 0 for n in ('lockin1', 'lockin2'))
       and not ui.realtimeDisp1.isChecked() and not ui.realtimeDisp2.isChecked(), f'before={before}, during={during}')
+REALTIME_READ_S[0] = 0.0
 check('Jog buttons disabled during the scan and enabled again afterwards',
       during['jog_enabled'] == [False] * 10 and all(getattr(ui, n).isEnabled() for n in JOGS), f"during={during.get('jog_enabled')}")
 
@@ -661,15 +706,15 @@ check('FFT display: no spectrum for a gap, two points or one point (no exception
 # ---- 12. Clear Display ----
 reset()
 for _ in range(5):
-    m.chart_updaters['realDisChart1'].update()
-    m.chart_updaters['realDisChart2'].update()
+    realtime_update('realDisChart1')
+    realtime_update('realDisChart2')
 m.update_lockin_charts({'l1x': 1.0, 'l1y': 2.0, 'l2x': 3.0, 'l2y': 4.0})
 CHARTS = ('lockin1XChart', 'lockin1YChart', 'lockin2XChart', 'lockin2YChart', 'realDisChart1', 'realDisChart2')
 filled = all(len(m.buffers[c]) > 0 for c in CHARTS)
 number = ui.realDisChart1Num.text()
 ui.clearLockinDisplay.click()
 cleared = all(len(m.buffers[c]) == 0 and m.indices[c] == -1 and m.curves[c].getData()[1] is None for c in CHARTS)
-m.chart_updaters['realDisChart1'].update()
+realtime_update('realDisChart1')
 check('Clear Display: four scan traces and both Realtime traces emptied, number box kept, Realtime restarts at 0',
       filled and cleared and ui.realDisChart1Num.text() == number and number != ''
       and m.indices['realDisChart1'] == 0 and len(m.buffers['realDisChart1']) == 1, f'filled={filled}, cleared={cleared}')

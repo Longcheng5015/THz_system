@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Tuple, Optional, List
 import time     # for sleep delays, if needed, but it's better not to use it in the class, because it can block I/O, especially in GUIs
+import threading
 import pyvisa
 
 
@@ -54,6 +55,9 @@ class SR830:
         12: 256, 13: 512, 14: "Trigger"
     }
 
+    _io_locks = {}                      # instrument address -> lock shared by its SR830 objects
+    _io_locks_guard = threading.Lock()
+
     def __init__(self, resource: str, timeout_ms: int = 1000):
         """
         Create a controller.
@@ -64,6 +68,11 @@ class SR830:
         self._inst: Optional[pyvisa.resources.MessageBasedResource] = None
         self.resource = resource   
         self.timeout_ms = timeout_ms
+        # One command or query at a time per instrument address: a query is a write and a read, and two threads
+        # (GUI, scan, Realtime reader) interleaving them would receive each other's replies. SR830 objects opened
+        # on the same address (e.g. both Lock-in boxes set to it) share the lock.
+        with SR830._io_locks_guard:
+            self._io_lock = SR830._io_locks.setdefault(resource.strip().upper(), threading.RLock())
 
     # ----------------------- connection helpers -----------------------
 
@@ -71,24 +80,25 @@ class SR830:
         """Open VISA session."""
         if self._inst is not None:
             return
-        
-        try:
-            self._rm = pyvisa.ResourceManager()
-            self._inst = self._rm.open_resource(self.resource)
-            self._inst.timeout = self.timeout_ms
-            
-            # set termination characters
-            self._inst.read_termination = "\n"
-            self._inst.write_termination = "\n"
-            
-            # clear I/O buffers
-            self._inst.clear()
 
-            #self._inst.write("OUTX 1")  # Recommended by manual: direct responses to active interface (GPIB=1, RS232=0)
-            return ""
+        with self._io_lock:  # the device clear must not hit a query of another object on the same address
+            try:
+                self._rm = pyvisa.ResourceManager()
+                self._inst = self._rm.open_resource(self.resource)
+                self._inst.timeout = self.timeout_ms
 
-        except Exception as e:
-            return str(e)
+                # set termination characters
+                self._inst.read_termination = "\n"
+                self._inst.write_termination = "\n"
+
+                # clear I/O buffers
+                self._inst.clear()
+
+                #self._inst.write("OUTX 1")  # Recommended by manual: direct responses to active interface (GPIB=1, RS232=0)
+                return ""
+
+            except Exception as e:
+                return str(e)
 
         # Recommended by manual: direct responses to active interface (GPIB=1, RS232=0)
         # We don't force-set OUTX here to avoid side effects; queries work on current interface. OUTX 0: RS232, 1: GPIB
@@ -102,12 +112,13 @@ class SR830:
         VI_ERROR_INV_OBJECT while walking resources that are already dead). It is released at
         interpreter exit.
         """
-        try:
-            if self._inst is not None:
-                self._inst.close()
-        finally:
-            self._inst = None
-            self._rm = None   # drop our reference only; the shared manager stays alive
+        with self._io_lock:  # a query in progress in another thread finishes first
+            try:
+                if self._inst is not None:
+                    self._inst.close()
+            finally:
+                self._inst = None
+                self._rm = None   # drop our reference only; the shared manager stays alive
 
     def __enter__(self) -> "SR830":
         self.open()
@@ -125,14 +136,16 @@ class SR830:
     # ----------------------- low-level I/O -----------------------
 
     def write(self, cmd: str) -> None:
-        if self._inst is None:
-            raise SR830Error("Instrument not open. Call open() or use context manager.")
-        self._inst.write(cmd)
+        with self._io_lock:
+            if self._inst is None:
+                raise SR830Error("Instrument not open. Call open() or use context manager.")
+            self._inst.write(cmd)
 
     def query(self, cmd: str) -> str:
-        if self._inst is None:
-            raise SR830Error("Instrument not open. Call open() or use context manager.")
-        return self._inst.query(cmd).strip()
+        with self._io_lock:
+            if self._inst is None:
+                raise SR830Error("Instrument not open. Call open() or use context manager.")
+            return self._inst.query(cmd).strip()
 
     # ----------------------- identification -----------------------
 

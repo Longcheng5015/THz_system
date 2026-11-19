@@ -22,7 +22,7 @@ exec(compile(source[:source.rindex('app = QApplication()')], str(SRC), 'exec'), 
 
 import h5py
 import numpy as np
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QThread
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 TMP = tempfile.TemporaryDirectory(prefix='optp_scan_failures_')
@@ -82,6 +82,8 @@ class Lockin:
         self.fail_on, self.fail_point, self.reads = fail_on, fail_point, []
 
     def read(self, channel):
+        if type(QThread.currentThread()).__name__ == 'RealtimeReader':  # Realtime display (v4.5+), not a scan read
+            return 1.0 if channel == 'x' else 0.5
         self.reads.append(channel)
         if channel == self.fail_on and self.reads.count(channel) == self.fail_point:
             raise RuntimeError('simulated lock-in timeout')
@@ -118,6 +120,13 @@ class ITC:
         return self.T
 
     def __getattr__(self, name): return lambda *a, **k: True
+
+
+def realtime_active(updater):
+    """Realtime display running: the QTimer up to THz v1.9 / OPTP v4.4 / MO v3.0 / Imaging v2.1, then a reader
+    thread that has not been asked to stop."""
+    reader = getattr(updater, 'reader', None)
+    return updater.timer.isActive() if reader is None else reader.isRunning() and not reader.stop_requested()
 
 
 def reset(temperature=False, drift=False):
@@ -228,8 +237,8 @@ reset(); ui.realtimeDisp1.setChecked(True); ui.realtimeDisp2.setChecked(True)
 data, paths, log = run()
 check('scan releases both Realtime buttons and stops timers; they stay off afterwards',
       not ui.realtimeDisp1.isChecked() and not ui.realtimeDisp2.isChecked()
-      and not m.chart_updaters['realDisChart1'].timer.isActive()
-      and not m.chart_updaters['realDisChart2'].timer.isActive()
+      and not realtime_active(m.chart_updaters['realDisChart1'])
+      and not realtime_active(m.chart_updaters['realDisChart2'])
       and all(getattr(ui, name).isChecked() for name in ('activeLockin1', 'activeLockin2', 'activeStage1', 'activeStage2')))
 
 reset(temperature=True); m.uid_TEMP = None
